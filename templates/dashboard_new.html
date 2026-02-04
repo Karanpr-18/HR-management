@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Ranking Dashboard | TalentAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-dashboard.css') }}">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                    <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white" opacity="0.9" />
+                    <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.6" />
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="brand-name">TalentAI</span>
+            </a>
+
+            <ul class="sidebar-nav">
+                <li class="sidebar-nav-item">
+                    <a href="/overview" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        Overview
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/dashboard" class="sidebar-nav-link active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employer" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        Job Context
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-header">
+                <h1 class="header-title">Welcome back! 👋</h1>
+                <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
+                    <label style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Filter by
+                        Role:</label>
+                    <select onchange="window.location.href=this.value"
+                        style="background: #1e1b4b; border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 0.625rem 1.25rem; color: #e0e7ff; font-size: 0.9rem; font-weight: 600; cursor: pointer; min-width: 200px; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill=%23a78bfa height=24 viewBox=\'0 0 24 24\' width=24 xmlns=http://www.w3.org/2000/svg><path d=\'M7 10l5 5 5-5z\' /></svg>'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.25rem; padding-right: 2.5rem;">
+                        <option value="/dashboard" style="background: #1e1b4b; color: #e0e7ff;" {% if not
+                            selected_position %}selected{% endif %}>All Positions</option>
+                        {% for p in positions %}
+                        <option value="/dashboard/{{ p.id }}" style="background: #1e1b4b; color: #e0e7ff;" {% if
+                            selected_position and selected_position.id==p.id %}selected{% endif %}>{{ p.title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="content-wrapper">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div
+                    style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; animation: slideIn 0.3s ease-out;">
+                    <div
+                        style="background: rgba(16, 185, 129, 0.2); padding: 0.25rem; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#10b981" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                    <span style="color: #10b981; font-weight: 600; font-size: 0.95rem;">{{ message }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Candidates</div>
+                        <div class="stat-value">{{ candidates|length if candidates else 0 }}</div>
+                        <div class="stat-trend">📈 All time</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Top Score</div>
+                        <div class="stat-value">{{ "%.1f"|format(candidates[0].final_rank_score) if candidates else
+                            "0.0" }}</div>
+                        <div class="stat-trend">🏆 {{ candidates[0].name if candidates else "N/A" }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Highest Exp</div>
+                        <div class="stat-value">{{ candidates | map(attribute='python_experience_years') | max if
+                            candidates else 0 }}</div>
+                        <div class="stat-trend">📊 Years</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Pending</div>
+                        <div class="stat-value">{{ candidates | length - (candidates | selectattr('status', 'equalto',
+                            'Accepted') | list | length) - (candidates | selectattr('status', 'equalto', 'Rejected') |
+                            list | length) if candidates else 0 }}</div>
+                        <div class="stat-trend">⏳ Action Needed</div>
+                    </div>
+                </div>
+
+                <!-- Candidates Table -->
+                <div class="table-card">
+                    <div class="table-header">
+                        <h2 class="table-title">Candidate Rankings {% if selected_position %}<span
+                                style="font-weight: 400; color: var(--text-secondary);"> — {{ selected_position.title
+                                }}</span>{% endif %}</h2>
+                    </div>
+
+                    {% if candidates %}
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Name</th>
+                                    <th>University</th>
+                                    <th>Skills</th>
+                                    <th>Python</th>
+                                    <th>Uni Tier</th>
+                                    <th>Exp.</th>
+                                    <th>Years</th>
+                                    <th>Method</th>
+                                    <th>Final Score</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in candidates %}
+                                <tr>
+                                    <td>
+                                        <span class="rank-badge">#{{ loop.index }}</span>
+                                    </td>
+                                    <td style="font-weight: 600; color: var(--text-primary);">{{ c.name }}</td>
+                                    <td style="color: var(--text-secondary);">{{ c.university }}</td>
+                                    <td>
+                                        {% if c.skills %}
+                                        {% for skill in c.skills[:3] %}
+                                        <span class="skill-tag">{{ skill }}</span>
+                                        {% endfor %}
+                                        {% if c.skills|length > 3 %}
+                                        <span style="color: var(--text-muted); font-size: 0.75rem;">+{{ c.skills|length
+                                            - 3 }}</span>
+                                        {% endif %}
+                                        {% else %}
+                                        <span style="color: var(--text-muted);">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="{% if c.python_score >= 7 %}score-high{% elif c.python_score >= 4 %}score-medium{% else %}score-low{% endif %}"
+                                            style="font-weight: 700;">
+                                            {{ c.python_score }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="{% if c.uni_tier_score >= 8 %}score-high{% elif c.uni_tier_score >= 5 %}score-medium{% else %}score-low{% endif %}"
+                                            style="font-weight: 700;">
+                                            {{ c.uni_tier_score }}
+                                        </span>
+                                    </td>
+                                    <td style="font-weight: 600;">{{ c.get('experience_score', 0) if
+                                        c.get('experience_score') else 'N/A' }}</td>
+                                    <td style="color: var(--text-secondary);">{{ c.python_experience_years }}</td>
+                                    <td>
+                                        {% set method = c.get('analysis_method', 'Rule-Based') | string %}
+                                        <span
+                                            class="method-badge {% if 'Groq' in method %}method-groq{% elif 'Gemini' in method %}method-gemini{% else %}method-rule{% endif %}">
+                                            {% if 'Groq' in method %}
+                                            🚀 Groq
+                                            {% elif 'Gemini' in method %}
+                                            ✨ Gemini
+                                            {% else %}
+                                            ⚙️ Rule-Based
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="score-badge {% if c.final_rank_score >= 7 %}score-high{% elif c.final_rank_score >= 4 %}score-medium{% else %}score-low{% endif %}">
+                                            {{ "%.2f"|format(c.final_rank_score) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form action="/update_status/{{ c.id }}" method="POST">
+                                            <select name="status" onchange="this.form.submit()"
+                                                class="status-select {% if c.status == 'Accepted' %}status-accepted{% elif c.status == 'Rejected' %}status-rejected{% else %}status-pending{% endif %}">
+                                                <option value="Pending" {% if not c.status or c.status=='Pending'
+                                                    %}selected{% endif %}>⏳ Pending</option>
+                                                <option value="Accepted" {% if c.status=='Accepted' %}selected{% endif
+                                                    %}>✅ Accepted</option>
+                                                <option value="Rejected" {% if c.status=='Rejected' %}selected{% endif
+                                                    %}>❌ Rejected</option>
+                                            </select>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                            <a href="/candidate/{{ c.id }}" class="view-link" title="View Details">
+                                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+                                                    stroke="currentColor" stroke-width="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                            </a>
+                                            <button type="button" class="delete-btn" title="Delete Applicant"
+                                                onclick="openDeleteModal('{{ c.id }}', '{{ c.name }}')">
+                                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                                                    stroke="currentColor" stroke-width="2">
+                                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                                    <path
+                                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                                    </path>
+                                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                                </svg>
+                                                <span>Delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <p>No candidates analyzed yet</p>
+                        <a href="/analyze" class="btn-primary">Upload First Resume</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-icon-wrapper">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2">
+                        <path
+                            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                        </path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <h3 class="modal-title">Delete Applicant?</h3>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteCandidateName"></strong>? This action cannot be
+                    undone and will permanently remove all associated data.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <form id="deleteForm" action="" method="POST" style="margin:0;">
+                    <button type="submit" class="btn-danger">Delete Applicant</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        function openDeleteModal(candidateId, candidateName) {
+            const modal = document.getElementById('deleteModal');
+            const form = document.getElementById('deleteForm');
+            const nameSpan = document.getElementById('deleteCandidateName');
+
+            form.action = `/delete_candidate/${candidateId}`;
+            nameSpan.textContent = candidateName;
+
+            modal.style.display = 'flex';
+            // Slight delay to trigger transition if we add one, or just display flex
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        // Close modal if clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('deleteModal');
+            if (event.target == modal) {
+                closeDeleteModal();
+            }
+        }
+    </script>
+</body>
+
+</html>

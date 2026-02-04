@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TalentAI - AI-Powered Resume Analysis Platform</title>
+    <meta name="description"
+        content="Transform your hiring process with AI. Analyze hundreds of resumes in seconds and find the perfect candidates.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_website.css') }}">
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container-nav">
+            <div class="nav-brand">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                    <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white" opacity="0.9" />
+                    <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.6" />
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="brand-name">TalentAI</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#get-started">Get Started</a>
+                <a href="/hr_login" class="btn-nav-primary">Employer Login</a>
+            </div>
+            <button class="mobile-menu-btn" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+        </div>
+
+        <div class="container-hero">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-icon">✨</span>
+                    <span>AI-Powered Resume Screening</span>
+                </div>
+                <h1 class="hero-title">
+                    Smart Resume<br>
+                    Analysis with <span class="gradient-text">AI</span>
+                </h1>
+                <p class="hero-description">
+                    Revolutionize your hiring process. Upload resumes, get instant AI-powered analysis,
+                    skill extraction, and candidate ranking - all in seconds.
+                </p>
+
+                <!-- Dual Login Cards -->
+                <div class="login-cards">
+                    <a href="/hr_login" class="login-card employer-card">
+                        <div class="login-card-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <rect width="48" height="48" rx="12" fill="url(#emp-grad)" />
+                                <path d="M24 14L30 20L24 26L18 20L24 14Z" fill="white" opacity="0.9" />
+                                <path d="M14 26H34" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+                                <path d="M16 32H32" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+                                <defs>
+                                    <linearGradient id="emp-grad" x1="0" y1="0" x2="48" y2="48">
+                                        <stop offset="0%" stop-color="#6366f1" />
+                                        <stop offset="100%" stop-color="#a855f7" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h3>Employer Portal</h3>
+                        <p>Screen resumes, rank candidates, and find the best talent with AI</p>
+                        <span class="login-card-cta">
+                            Start Screening
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                    </a>
+
+                    <a href="/applicant_login" class="login-card applicant-card">
+                        <div class="login-card-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <rect width="48" height="48" rx="12" fill="url(#app-grad)" />
+                                <circle cx="24" cy="18" r="6" stroke="white" stroke-width="2.5" />
+                                <path d="M14 36C14 30 18 26 24 26C30 26 34 30 34 36" stroke="white" stroke-width="2.5"
+                                    stroke-linecap="round" />
+                                <defs>
+                                    <linearGradient id="app-grad" x1="0" y1="0" x2="48" y2="48">
+                                        <stop offset="0%" stop-color="#ec4899" />
+                                        <stop offset="100%" stop-color="#f43f5e" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                        </div>
+                        <h3>Applicant Portal</h3>
+                        <p>Submit your resume and track your application status</p>
+                        <span class="login-card-cta">
+                            Apply Now
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                    </a>
+                </div>
+
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">10K+</div>
+                        <div class="stat-label">Resumes Analyzed</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">95%</div>
+                        <div class="stat-label">Accuracy Rate</div>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <div class="stat-number">10x</div>
+                        <div class="stat-label">Faster Screening</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">Features</span>
+                <h2 class="section-title">Everything you need to find top talent</h2>
+                <p class="section-description">Powered by advanced AI to give you insights that matter</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="url(#feat1)" />
+                            <path d="M16 8L20 12L16 16L12 12L16 8Z M16 16L20 20L16 24L12 20L16 16Z" fill="white" />
+                            <defs>
+                                <linearGradient id="feat1" x1="0" y1="0" x2="32" y2="32">
+                                    <stop offset="0%" stop-color="#6366f1" />
+                                    <stop offset="100%" stop-color="#8b5cf6" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>AI-Powered Analysis</h3>
+                    <p>Advanced machine learning algorithms analyze resumes with human-like understanding and context
+                        awareness.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="url(#feat2)" />
+                            <path d="M10 16L14 20L22 12" stroke="white" stroke-width="2.5" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <defs>
+                                <linearGradient id="feat2" x1="0" y1="0" x2="32" y2="32">
+                                    <stop offset="0%" stop-color="#8b5cf6" />
+                                    <stop offset="100%" stop-color="#a855f7" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>Smart Scoring System</h3>
+                    <p>Automatic ranking based on skills, experience, and education. Get a sorted leaderboard of top
+                        candidates instantly.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="url(#feat3)" />
+                            <circle cx="16" cy="16" r="6" stroke="white" stroke-width="2.5" />
+                            <path d="M16 10V16L20 18" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+                            <defs>
+                                <linearGradient id="feat3" x1="0" y1="0" x2="32" y2="32">
+                                    <stop offset="0%" stop-color="#a855f7" />
+                                    <stop offset="100%" stop-color="#ec4899" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>Lightning Fast</h3>
+                    <p>Process hundreds of resumes in seconds. What takes hours manually, our AI does in moments.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="url(#feat4)" />
+                            <rect x="8" y="8" width="16" height="16" rx="2" stroke="white" stroke-width="2.5" />
+                            <path d="M12 16H20 M16 12V20" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+                            <defs>
+                                <linearGradient id="feat4" x1="0" y1="0" x2="32" y2="32">
+                                    <stop offset="0%" stop-color="#ec4899" />
+                                    <stop offset="100%" stop-color="#f43f5e" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>PDF Upload</h3>
+                    <p>Upload multiple PDF resumes at once. Automatic text extraction and intelligent parsing.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="url(#feat5)" />
+                            <path d="M8 12L16 8L24 12L16 16L8 12Z M8 20L16 24L24 20" stroke="white" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                            <defs>
+                                <linearGradient id="feat5" x1="0" y1="0" x2="32" y2="32">
+                                    <stop offset="0%" stop-color="#f43f5e" />
+                                    <stop offset="100%" stop-color="#fb923c" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>Skill Detection</h3>
+                    <p>Automatically identifies technical skills, frameworks, and years of experience from resume
+                        content.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <rect width="32" height="32" rx="8" fill="url(#feat6)" />
+                            <path d="M16 8V24 M8 16H24" stroke="white" stroke-width="2.5" stroke-linecap="round" />
+                            <circle cx="16" cy="12" r="2" fill="white" />
+                            <circle cx="16" cy="20" r="2" fill="white" />
+                            <circle cx="12" cy="16" r="2" fill="white" />
+                            <circle cx="20" cy="16" r="2" fill="white" />
+                            <defs>
+                                <linearGradient id="feat6" x1="0" y1="0" x2="32" y2="32">
+                                    <stop offset="0%" stop-color="#fb923c" />
+                                    <stop offset="100%" stop-color="#6366f1" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                    <h3>University Ranking</h3>
+                    <p>Intelligent detection of top-tier universities and educational institutions worldwide.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-badge">How It Works</span>
+                <h2 class="section-title">Three simple steps to better hiring</h2>
+            </div>
+
+            <div class="steps-container">
+                <div class="step-card">
+                    <div class="step-number">01</div>
+                    <div class="step-icon">📝</div>
+                    <h3>Set Job Requirements</h3>
+                    <p>Enter your job description and define what you're looking for in an ideal candidate.</p>
+                </div>
+
+                <div class="step-arrow">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+                        <path d="M15 30H45M45 30L35 20M45 30L35 40" stroke="url(#arrow1)" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                        <defs>
+                            <linearGradient id="arrow1" x1="15" y1="30" x2="45" y2="30">
+                                <stop offset="0%" stop-color="#6366f1" />
+                                <stop offset="100%" stop-color="#a855f7" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">02</div>
+                    <div class="step-icon">⚡</div>
+                    <h3>Upload Resumes</h3>
+                    <p>Batch upload PDF resumes or paste resume text. Our AI extracts and analyzes all the data.</p>
+                </div>
+
+                <div class="step-arrow">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+                        <path d="M15 30H45M45 30L35 20M45 30L35 40" stroke="url(#arrow2)" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                        <defs>
+                            <linearGradient id="arrow2" x1="15" y1="30" x2="45" y2="30">
+                                <stop offset="0%" stop-color="#a855f7" />
+                                <stop offset="100%" stop-color="#ec4899" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">03</div>
+                    <div class="step-icon">🎯</div>
+                    <h3>Get Ranked Results</h3>
+                    <p>View a sorted dashboard of candidates with detailed scores and insights. Pick the best!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="get-started" class="cta-section">
+        <div class="container">
+            <div class="cta-card">
+                <div class="cta-content">
+                    <h2>Ready to find the perfect candidates?</h2>
+                    <p>Start screening resumes with AI today. No credit card required.</p>
+                </div>
+                <div class="cta-buttons">
+                    <a href="/overview" class="btn-primary">Go to Employer Portal</a>
+                    <a href="/applicant" class="btn-outline">Go to Applicant Portal</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <rect width="32" height="32" rx="8" fill="url(#footer-logo)" />
+                        <path d="M16 8L20 12L16 16L12 12L16 8Z M16 16L20 20L16 24L12 20L16 16Z" fill="white" />
+                        <defs>
+                            <linearGradient id="footer-logo" x1="0" y1="0" x2="32" y2="32">
+                                <stop offset="0%" stop-color="#6366f1" />
+                                <stop offset="100%" stop-color="#a855f7" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <span>TalentAI</span>
+                </div>
+                <div class="footer-text">
+                    <p>&copy; 2026 TalentAI. AI-powered resume analysis platform.</p>
+                    <p>Hire smarter, not harder.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/ai_website.js') }}"></script>
+</body>
+
+</html>

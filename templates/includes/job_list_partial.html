@@ -1,0 +1,112 @@
+<div class="jobs-container">
+    {% if positions %}
+    {% for position in positions %}
+    <div class="job-card" id="job-{{ position.id }}">
+        <div class="job-header" onclick="toggleJob('{{ position.id }}')">
+            <span class="job-title">{{ position.title }}</span>
+            <svg class="expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6" />
+            </svg>
+        </div>
+        <div class="job-body">
+            <div class="job-content">
+                <div class="job-description-label">Job Description</div>
+                <div class="job-description">{{ position.description }}</div>
+
+                <div class="apply-section">
+                    <h4>📄 Apply for this position</h4>
+                    <form action="/process_applicant/{{ position.id }}" method="POST" enctype="multipart/form-data"
+                        id="form-{{ position.id }}" onsubmit="handleSubmit('{{ position.id }}')">
+                        <div class="upload-area" onclick="document.getElementById('file-{{ position.id }}').click()"
+                            ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(this)"
+                            ondrop="handleDrop(event, '{{ position.id }}')">
+                            <div class="upload-icon">📤</div>
+                            <div class="upload-text">
+                                <strong>Click to upload</strong> or drag and drop<br>
+                                PDF files only (max 10MB)
+                            </div>
+                        </div>
+                        <input type="file" name="resume_file" id="file-{{ position.id }}" class="file-input"
+                            accept=".pdf" onchange="handleFileSelect('{{ position.id }}', this)">
+
+                        <div class="selected-file" id="selected-{{ position.id }}">
+                            <span>📎</span>
+                            <span id="filename-{{ position.id }}"></span>
+                        </div>
+
+                        <button type="submit" class="submit-btn" id="submit-{{ position.id }}" disabled>
+                            Submit Application
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="no-jobs">
+        <div class="no-jobs-icon">📭</div>
+        <h3>No Open Positions</h3>
+        <p>Check back later for new opportunities!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function toggleJob(id) {
+        const card = document.getElementById('job-' + id);
+        card.classList.toggle('expanded');
+    }
+
+    function handleFileSelect(positionId, input) {
+        const file = input.files[0];
+        if (file) {
+            document.getElementById('filename-' + positionId).textContent = file.name;
+            document.getElementById('selected-' + positionId).classList.add('show');
+            document.getElementById('submit-' + positionId).disabled = false;
+        }
+    }
+
+    function handleDragOver(e, element) {
+        e.preventDefault();
+        element.classList.add('dragover');
+    }
+
+    function handleDragLeave(element) {
+        element.classList.remove('dragover');
+    }
+
+    function handleDrop(e, positionId) {
+        e.preventDefault();
+        const element = e.currentTarget;
+        element.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type === 'application/pdf') {
+            const input = document.getElementById('file-' + positionId);
+            input.files = files;
+            handleFileSelect(positionId, input);
+        }
+    }
+
+    function handleSubmit(positionId) {
+        const btn = document.getElementById('submit-' + positionId);
+        btn.disabled = true;
+        btn.innerHTML = `
+            <svg class="spinner" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 8px;">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-dasharray="32" stroke-linecap="round" style="animation: spin 1s linear infinite; transform-origin: center;"></circle>
+            </svg>
+            Processing Application...
+        `;
+
+        // Inject spinner CSS if not exists
+        if (!document.getElementById('spinner-style')) {
+            const style = document.createElement('style');
+            style.id = 'spinner-style';
+            style.textContent = `
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+</script>

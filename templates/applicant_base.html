@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Applicant Portal | TalentAI{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <a href="/" class="brand">
+                <div class="brand-icon">T</div>
+                <span class="brand-name">TalentAI</span>
+            </a>
+
+            <nav class="nav-menu">
+                <a href="/applicant_dashboard"
+                    class="nav-item {% if request.path == '/applicant_dashboard' %}active{% endif %}">
+                    <span>📊</span>
+                    <span>My Status</span>
+                </a>
+                <a href="/applicant" class="nav-item {% if request.path == '/applicant' %}active{% endif %}">
+                    <span>💼</span>
+                    <span>Open Positions</span>
+                </a>
+            </nav>
+
+            <div class="user-profile">
+                <div class="user-avatar">
+                    {{ session.get('user_name', 'User')[0] | upper }}
+                </div>
+                <div style="flex: 1; overflow: hidden;">
+                    <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ session.get('user_name', 'Applicant') }}
+                    </div>
+                    <a href="/logout"
+                        style="font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;">Log out</a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="flash-messages">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}"
+                    style="margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; background: rgba(var(--bg-rgb), 0.1); border: 1px solid var(--border-color); color: var(--text-primary);">
+                    {{ message }}
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+
+</html>

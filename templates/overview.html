@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overview | TalentAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        .overview-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .overview-stat-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .overview-stat-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2);
+        }
+
+        .overview-stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.15), transparent);
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon.primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        }
+
+        .stat-icon.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .stat-icon.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .stat-icon.info {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .chart-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .chart-canvas-wrapper {
+            width: 280px;
+            height: 280px;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .legend-color.pending {
+            background: #f59e0b;
+        }
+
+        .legend-color.accepted {
+            background: #10b981;
+        }
+
+        .legend-color.rejected {
+            background: #ef4444;
+        }
+
+        .legend-text {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .legend-value {
+            color: var(--text-primary);
+            font-weight: 700;
+            margin-left: auto;
+        }
+
+        .greeting-header {
+            margin-bottom: 2rem;
+        }
+
+        .greeting-text {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .greeting-sub {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .quick-action-btn {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        .quick-action-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                    <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white" opacity="0.9" />
+                    <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.6" />
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="brand-name">TalentAI</span>
+            </a>
+
+            <ul class="sidebar-nav">
+                <li class="sidebar-nav-item">
+                    <a href="/overview" class="sidebar-nav-link active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        Overview
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/dashboard" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employer" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path
+                                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                            </path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        Job Context
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-header">
+                <div class="greeting-header">
+                    <h1 class="greeting-text" id="greeting">Good day! 👋</h1>
+                    <p class="greeting-sub">Here's your recruitment overview for today</p>
+                    <div class="quick-actions">
+                        <a href="/dashboard" class="quick-action-btn">View All Candidates</a>
+                        <a href="/employer" class="quick-action-btn secondary">Manage Positions</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-wrapper">
+                <!-- Stats Cards -->
+                <div class="overview-stats">
+                    <div class="overview-stat-card">
+                        <div class="stat-icon primary">📩</div>
+                        <div class="stat-number">{{ stats.today_applicants }}</div>
+                        <div class="stat-label">New Today</div>
+                    </div>
+                    <div class="overview-stat-card">
+                        <div class="stat-icon info">💼</div>
+                        <div class="stat-number">{{ stats.total_positions }}</div>
+                        <div class="stat-label">Job Openings</div>
+                    </div>
+                    <div class="overview-stat-card">
+                        <div class="stat-icon success">✅</div>
+                        <div class="stat-number">{{ stats.hires_this_month }}</div>
+                        <div class="stat-label">Hires This Month</div>
+                    </div>
+                    <div class="overview-stat-card">
+                        <div class="stat-icon warning">⏳</div>
+                        <div class="stat-number">{{ stats.pending_count }}</div>
+                        <div class="stat-label">Pending Review</div>
+                    </div>
+                </div>
+
+                <!-- Chart Section -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h2 class="chart-title">Application Status Overview</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <div class="chart-canvas-wrapper">
+                            <canvas id="statusChart" data-pending="{{ stats.pending_count|default(0) }}"
+                                data-accepted="{{ stats.accepted_count|default(0) }}"
+                                data-rejected="{{ stats.rejected_count|default(0) }}"></canvas>
+                        </div>
+                        <div class="chart-legend">
+                            <div class="legend-item">
+                                <div class="legend-color pending"></div>
+                                <span class="legend-text">Pending</span>
+                                <span class="legend-value">{{ stats.pending_count }}</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color accepted"></div>
+                                <span class="legend-text">Accepted</span>
+                                <span class="legend-value">{{ stats.accepted_count }}</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color rejected"></div>
+                                <span class="legend-text">Rejected</span>
+                                <span class="legend-value">{{ stats.rejected_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Dynamic greeting based on time
+        const hour = new Date().getHours();
+        let greeting = 'Good day';
+        if (hour < 12) greeting = 'Good morning';
+        else if (hour < 17) greeting = 'Good afternoon';
+        else greeting = 'Good evening';
+        document.getElementById('greeting').textContent = greeting + '! 👋';
+
+        // Chart.js Donut Chart
+        const statusCanvas = document.getElementById('statusChart');
+        const ctx = statusCanvas.getContext('2d');
+        const data = {
+            labels: ['Pending', 'Accepted', 'Rejected'],
+            datasets: [{
+                data: [
+                    statusCanvas.dataset.pending,
+                    statusCanvas.dataset.accepted,
+                    statusCanvas.dataset.rejected
+                ],
+                backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
+                borderColor: ['#f59e0b', '#10b981', '#ef4444'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        };
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(30, 27, 75, 0.95)',
+                        titleColor: '#e0e7ff',
+                        bodyColor: '#c7d2fe',
+                        borderColor: 'rgba(139, 92, 246, 0.3)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

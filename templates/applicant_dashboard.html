@@ -1,0 +1,59 @@
+{% extends 'applicant_base.html' %}
+
+{% block title %}My Dashboard | TalentAI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Hello, {{ user.name }}</h1>
+    <p>Welcome to your applicant dashboard</p>
+</div>
+
+<h2 style="margin-bottom: 1.5rem; color: var(--text-primary); font-size: 1.5rem; font-weight: 700;">Your Applications
+</h2>
+
+{% if applications %}
+<div style="display: grid; gap: 1.5rem;">
+    {% for app in applications %}
+    <div
+        style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <div style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+                    {{ app.position.title if app.position else 'Deleted Position' }}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                    Submitted on {{ app.candidate.created_at[:10] if app.candidate.created_at else 'N/A' }}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                    ID: {{ app.candidate.id }}
+                </div>
+            </div>
+            {% set status_color = '#f59e0b' %}
+            {% set status_bg = 'rgba(245, 158, 11, 0.15)' %}
+            {% if app.candidate.status == 'accepted' %}
+            {% set status_color = '#22c55e' %}
+            {% set status_bg = 'rgba(34, 197, 94, 0.15)' %}
+            {% elif app.candidate.status == 'rejected' %}
+            {% set status_color = '#ef4444' %}
+            {% set status_bg = 'rgba(239, 68, 68, 0.15)' %}
+            {% endif %}
+            <div
+                style="padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; background: {{ status_bg }}; color: {{ status_color }}; border: 1px solid rgba(255, 255, 255, 0.1);">
+                {{ app.candidate.status or 'pending' }}
+            </div>
+        </div>
+        <!-- Scores section removed for applicants -->
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+    <h3>No applications yet</h3>
+    <p>Go to the Job Board to find and apply for open positions.</p>
+    <br>
+    <a href="/applicant"
+        style="display: inline-block; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; text-decoration: none; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;">Browse
+        Jobs</a>
+</div>
+{% endif %}
+{% endblock %}
