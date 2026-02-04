@@ -2,7 +2,7 @@
 
 A comprehensive AI-powered hiring platform designed to automate and streamline the recruitment process for both HR administrators and job applicants.
 
-*   **Live Demo:** [https://hr-management-app-w6xc.onrender.com/](https://hr-management-app-w6xc.onrender.com/)
+*   **Live Demo:** [https://hr-management-app-w6xc.onrender.com/](https://hr-management-e1l5.onrender.com)
 
 [![AI Powered](https://img.shields.io/badge/AI-Powered-blueviolet)](https://gemini.google.com/app)
 [![Framework](https://img.shields.io/badge/Framework-Flask-black)](https://flask.palletsprojects.com/)
@@ -89,4 +89,4 @@ A comprehensive AI-powered hiring platform designed to automate and streamline t
 *   **File Storage:** Uploaded resumes are stored in the local `uploads/` directory.
 
 ---
-*Developed with ❤️ for efficient and intelligent hiring.*
+*Developed  for efficient and intelligent hiring.*
