@@ -20,10 +20,10 @@ except Exception as e:
     print(f"Error listing models: {e}")
 
 print("-" * 20)
-print("Testing generation with 'gemini-2.5-flash-lite'...")
+print("Testing generation with 'gemini-2.0-flash'...")
 try:
     response = client.models.generate_content(
-        model='gemini-2.5-flash-lite',
+        model='gemini-2.0-flash',
         contents='Hello, are you working?'
     )
     print("Success!")

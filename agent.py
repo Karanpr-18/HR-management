@@ -204,10 +204,48 @@ Output JSON ONLY:
             validated = CandidateResult.model_validate(data)
             return validated.to_storage_dict()
 
-        # Primary: Groq Llama 3.1
+        # Primary: Gemini Flash (Highly reliable, native support)
+        if self.gemini_client:
+            try:
+                # Using gemini-2.5-flash-lite as the preferred model
+                model_name = 'gemini-2.5-flash-lite' 
+                
+                print(f"Using Gemini primary ({model_name})...")
+                response = self.gemini_client.models.generate_content(
+                    model=model_name,
+                    contents=f"{system_prompt}\n{user_content}",
+                    config=types.GenerateContentConfig(
+                        temperature=0.1,
+                        response_mime_type="application/json"
+                    )
+                )
+                
+                if response.text:
+                    try:
+                        result = process_json_response(response.text)
+                        result["analysis_method"] = "Gemini 2.5 Flash Lite"
+                        return result
+                    except ValidationError as ve:
+                         # Gemini Self-correction
+                        print(f"Gemini Validation failed, attempting self-correction: {ve}")
+                        fix_prompt = f"Fix this invalid JSON based on schema:\n{response.text}\nError: {ve}\nReturn ONLY valid JSON."
+                        retry_resp = self.gemini_client.models.generate_content(
+                            model=model_name,
+                            contents=fix_prompt,
+                            config=types.GenerateContentConfig(response_mime_type="application/json")
+                        )
+                        if retry_resp.text:
+                            result = process_json_response(retry_resp.text)
+                            result["analysis_method"] = "Gemini 2.5 Flash Lite (Corrected)"
+                            return result
+                        
+            except Exception as e:
+                print(f"Gemini Analysis Failed ({e}). Attempting Groq fallback...")
+
+        # Secondary: Groq Llama 3.1 (Fast fallback)
         if self.groq_client:
             try:
-                print("Using Groq Llama-3.1-8b-instant...")
+                print("Using Groq Llama-3.1-8b-instant (Fallback)...")
                 chat_completion = self.groq_client.chat.completions.create(
                     messages=[
                         {
@@ -228,49 +266,11 @@ Output JSON ONLY:
                 content = chat_completion.choices[0].message.content
                 if content:
                     result = process_json_response(content)
-                    result["analysis_method"] = "Groq Llama-3.1"
+                    result["analysis_method"] = "Groq Llama-3.1 (Fallback)"
                     return result
                     
             except Exception as e:
-                print(f"Groq Analysis Failed ({e}). Attempting Gemini fallback...")
-
-        # Fallback/Secondary: Gemini Flash
-        if self.gemini_client:
-            try:
-                # Using gemini-flash-latest as a stable fallback
-                model_name = 'gemini-flash-latest' 
-                
-                print(f"Using Gemini fallback ({model_name})...")
-                response = self.gemini_client.models.generate_content(
-                    model=model_name,
-                    contents=f"{system_prompt}\n{user_content}",
-                    config=types.GenerateContentConfig(
-                        temperature=0.1,
-                        response_mime_type="application/json"
-                    )
-                )
-                
-                if response.text:
-                    try:
-                        result = process_json_response(response.text)
-                        result["analysis_method"] = "Gemini Flash (Fallback)"
-                        return result
-                    except ValidationError as ve:
-                         # Gemini Self-correction
-                        print(f"Gemini Validation failed, attempting self-correction: {ve}")
-                        fix_prompt = f"Fix this invalid JSON based on schema:\n{response.text}\nError: {ve}\nReturn ONLY valid JSON."
-                        retry_resp = self.gemini_client.models.generate_content(
-                            model=model_name,
-                            contents=fix_prompt,
-                            config=types.GenerateContentConfig(response_mime_type="application/json")
-                        )
-                        if retry_resp.text:
-                            result = process_json_response(retry_resp.text)
-                            result["analysis_method"] = "Gemini Flash (Corrected Fallback)"
-                            return result
-                        
-            except Exception as e:
-                print(f"Gemini Analysis Failed ({e}). Using rule-based fallback.")
+                print(f"Groq Analysis Failed ({e}). Using rule-based fallback.")
 
         # Final Fallback
         return self.analyze_resume(resume_text, job_description)
