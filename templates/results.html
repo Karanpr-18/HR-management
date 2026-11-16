@@ -50,6 +50,25 @@
                     </a>
                 </li>
                 <li class="sidebar-nav-item">
+                    <a href="/candidate" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Candidates
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employees" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Current Employees
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
                     <a href="/employer" class="sidebar-nav-link">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path
@@ -68,8 +87,11 @@
         <main class="main-content">
             <div class="top-header">
                 <h1 class="header-title">Candidate Profile 👤</h1>
-                <div class="header-actions">
-                    <a href="/dashboard" class="btn-primary" style="background: rgba(255,255,255,0.1);">← Back to
+                <div class="header-actions" style="display: flex; gap: 0.75rem; align-items: center;">
+                    <a href="/candidate?id={{ candidate.id }}" class="btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 600;">
+                        💬 Candidate Hub & Chat
+                    </a>
+                    <a href="/dashboard" class="btn-primary" style="background: rgba(255,255,255,0.1); text-decoration: none;">← Back to
                         Dashboard</a>
                 </div>
             </div>
@@ -146,6 +168,102 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Interview Management Card -->
+                <div class="table-card" style="margin-bottom: 2rem; padding: 1.5rem 2rem;">
+                    {% set intv = candidate.get('interview') %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>📅</span> Interview Management
+                        </h2>
+                        {% if intv %}
+                            {% if intv.status == 'confirmed' %}
+                                <span style="padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);">
+                                    ✅ Confirmed by Candidate
+                                </span>
+                            {% elif intv.status == 'reschedule_requested' %}
+                                <span style="padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4);">
+                                    ⚠️ Candidate Requested Reschedule
+                                </span>
+                            {% elif intv.status == 'declined' %}
+                                <span style="padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                    ❌ Declined by Candidate
+                                </span>
+                            {% else %}
+                                <span style="padding: 4px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">
+                                    ⏳ Invitation Sent (Awaiting Response)
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">No interview scheduled yet</span>
+                        {% endif %}
+                    </div>
+
+                    {% if intv and intv.status == 'reschedule_requested' %}
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem;">
+                        <div style="font-weight: 700; color: #fbbf24; margin-bottom: 0.5rem; font-size: 1rem;">Action Needed: Reschedule Request</div>
+                        <div style="font-size: 0.95rem; color: var(--text-primary); margin-bottom: 0.3rem;">
+                            Proposed New Time: <strong>{{ intv.reschedule_request.proposed_date if intv.reschedule_request else '' }} at {{ intv.reschedule_request.proposed_time if intv.reschedule_request else '' }}</strong>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Reason: <em>{{ (intv.reschedule_request.reason if intv.reschedule_request else '') or 'None provided' }}</em>
+                        </div>
+                        <form action="/candidate/{{ candidate.id }}/resolve_reschedule" method="POST" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                            <input type="hidden" name="decision" value="approve">
+                            <button type="submit" style="background: #10b981; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 700; cursor: pointer;">
+                                ✅ Approve Candidate's Proposed Slot
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if intv %}
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; font-size: 0.95rem;">
+                        <div><span style="color: var(--text-secondary);">📅 Current Date:</span> <strong>{{ intv.date }}</strong></div>
+                        <div><span style="color: var(--text-secondary);">⏰ Current Time:</span> <strong>{{ intv.time }}</strong></div>
+                        <div><span style="color: var(--text-secondary);">📋 Round:</span> <strong>{{ intv.round_title }}</strong></div>
+                        {% if intv.meeting_link %}
+                        <div><span style="color: var(--text-secondary);">🔗 Meeting:</span> <a href="{{ intv.meeting_link }}" target="_blank" style="color: #8b5cf6;">Open Link</a></div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Schedule / Update Form toggle -->
+                    <details style="margin-top: 1rem;">
+                        <summary style="color: #8b5cf6; font-weight: 600; cursor: pointer; font-size: 0.9rem;">
+                            {% if intv %}✏️ Edit or Change Interview Slot{% else %}➕ Schedule Interview Now{% endif %}
+                        </summary>
+                        <form action="/candidate/{{ candidate.id }}/schedule" method="POST" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 1rem; max-width: 600px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                <div>
+                                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Date *</label>
+                                    <input type="date" name="date" value="{{ intv.date if intv else '' }}" required style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Time *</label>
+                                    <input type="time" name="time" value="{{ intv.time if intv else '' }}" required style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Round / Title</label>
+                                <input type="text" name="round_title" value="{{ intv.round_title if intv else 'Technical Interview' }}" style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Meeting Link</label>
+                                <input type="url" name="meeting_link" value="{{ intv.meeting_link if intv else '' }}" placeholder="https://meet.google.com/..." style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">HR Notes for Candidate</label>
+                                <textarea name="hr_note" rows="2" style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">{{ intv.hr_note if intv else '' }}</textarea>
+                            </div>
+                            <div>
+                                <button type="submit" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                    Save & Send Notification to Candidate
+                                </button>
+                            </div>
+                        </form>
+                    </details>
                 </div>
 
                 <!-- Stats Grid -->

@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Portal | TalentAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-dashboard.css') }}">
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-bg: rgba(22, 30, 49, 0.75);
+            --card-border: rgba(148, 163, 184, 0.12);
+            --accent-primary: #6366f1;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .portal-nav {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 0.9rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .portal-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: white;
+            font-weight: 700;
+            font-size: 1.15rem;
+        }
+
+        .portal-user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .portal-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+        }
+
+        .container-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Punch Hero Card */
+        .punch-hero-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        .punch-hero-card::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15), transparent);
+            border-radius: 50%;
+        }
+
+        .clock-display {
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: white;
+            font-variant-numeric: tabular-nums;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .date-display {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+
+        .punch-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.75rem;
+        }
+
+        .punch-status-badge.working {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+        }
+
+        .punch-status-badge.inactive {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .punch-status-badge.completed {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-punch {
+            padding: 1rem 2.2rem;
+            border-radius: 14px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+        }
+
+        .btn-punch-in {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-punch-in:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-punch-out {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.35);
+        }
+
+        .btn-punch-out:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(239, 68, 68, 0.5);
+        }
+
+        /* 4 Stats Cards */
+        .portal-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .portal-stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .portal-stat-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .stat-value {
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: white;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .stat-subtext {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            margin-top: 0.35rem;
+        }
+
+        /* 2-Column Split: Calendar & Leave */
+        .portal-split-layout {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr;
+            gap: 1.75rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .portal-split-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .glass-box {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 1.5rem;
+        }
+
+        .box-title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .box-title-bar h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Interactive Calendar */
+        .calendar-nav-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .cal-header-cell {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            padding: 0.4rem 0;
+        }
+
+        .cal-day-cell {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 10px;
+            min-height: 64px;
+            padding: 0.45rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .cal-day-cell.empty {
+            background: transparent;
+            border-color: transparent;
+        }
+
+        .cal-day-cell.present {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .cal-day-cell.leave {
+            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .cal-day-cell.today {
+            box-shadow: 0 0 0 2px var(--accent-primary);
+        }
+
+        .cal-date-number {
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .cal-status-badge {
+            font-size: 0.68rem;
+            padding: 0.15rem 0.35rem;
+            border-radius: 4px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .cal-status-badge.green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .cal-status-badge.amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .cal-status-badge.purple { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+
+        /* Leave Balances Grid */
+        .leave-balances-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .leave-bal-box {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .leave-bal-box h4 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+        }
+
+        .leave-bal-box p {
+            margin: 0.2rem 0 0 0;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .progress-track {
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.15);
+            margin-top: 0.6rem;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.3s ease;
+        }
+
+        /* Role & Portal Tabs */
+        .role-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .role-pill.lead { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+        .role-pill.staff { background: rgba(99, 102, 241, 0.18); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.35); }
+
+        .portal-tabs {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .portal-tab-btn {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 0.65rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .portal-tab-btn:hover { color: white; border-color: rgba(99, 102, 241, 0.4); }
+        .portal-tab-btn.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+        }
+
+        .tab-count-badge {
+            background: #f59e0b;
+            color: #0f172a;
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+        }
+
+        /* Leave Request Row */
+        .leave-req-item {
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 0.95rem 1.1rem;
+            margin-bottom: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .pipe-step {
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            background: rgba(148, 163, 184, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        .pipe-step.done { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+        .pipe-step.current { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3); }
+        .pipe-step.rejected { background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3); }
+
+        .status-badge-leave {
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .status-badge-leave.pending_lead { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .status-badge-leave.pending_hr { background: rgba(99, 102, 241, 0.18); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.35); }
+        .status-badge-leave.approved { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-badge-leave.rejected { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+        .btn-approve-lead {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-reject-lead {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.35);
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .team-table { width: 100%; border-collapse: collapse; }
+        .team-table th { text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; padding: 0.75rem; border-bottom: 1px solid var(--card-border); }
+        .team-table td { padding: 0.85rem 0.75rem; border-bottom: 1px solid rgba(148,163,184,0.08); font-size: 0.9rem; }
+
+        /* Modal styling */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal-card {
+            background: #1e293b;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 18px;
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-head {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-head h3 { margin: 0; color: white; font-size: 1.15rem; }
+
+        .modal-content-inner { padding: 1.5rem; }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            box-sizing: border-box;
+            margin-bottom: 1rem;
+        }
+
+        .form-input:focus { border-color: var(--accent-primary); }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="portal-nav">
+        <a href="/employee_dashboard" class="portal-brand">
+            <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+                <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white" opacity="0.9" />
+                <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.6" />
+                <defs>
+                    <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                        <stop offset="0%" stop-color="#6366f1" />
+                        <stop offset="100%" stop-color="#a855f7" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            <span>TalentAI <span style="font-weight: 400; font-size: 0.9rem; color: #818cf8;">Employee Portal</span></span>
+        </a>
+
+        <div class="portal-user-profile">
+            <!-- Notification Bell -->
+            <div style="position: relative;">
+                <button id="empNotifBtn" onclick="toggleEmpNotifDropdown()" style="position: relative; background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); color: white; padding: 0.45rem 0.65rem; border-radius: 10px; cursor: pointer; display: flex; align-items: center;" title="Notifications">
+                    <span>🔔</span>
+                    <span id="empNotifBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border-radius: 50%; font-size: 0.65rem; font-weight: 700; width: 18px; height: 18px; align-items: center; justify-content: center;">0</span>
+                </button>
+                <div id="empNotifDropdown" style="display: none; position: absolute; right: 0; top: 120%; width: 320px; background: #1e293b; border: 1px solid rgba(148,163,184,0.2); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.65); z-index: 1000; overflow: hidden;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--card-border); background: rgba(0,0,0,0.2);">
+                        <strong style="font-size: 0.85rem; color: white;">Notifications</strong>
+                        <button onclick="markAllEmpNotifsRead()" style="background: none; border: none; color: #818cf8; font-size: 0.75rem; cursor: pointer; font-weight: 600;">Mark all read</button>
+                    </div>
+                    <div id="empNotifList" style="max-height: 280px; overflow-y: auto;">
+                        <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.82rem;">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: right;">
+                <div style="display: flex; align-items: center; gap: 0.45rem; justify-content: flex-end;">
+                    <span style="font-weight: 600; color: white;">{{ emp.name }}</span>
+                    {% if is_team_lead %}
+                    <span class="role-pill lead">Team Lead</span>
+                    {% else %}
+                    <span class="role-pill staff">Employee</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 0.78rem; color: #818cf8;">
+                    {{ emp.id }} • {{ emp.role }}
+                    {% if not is_team_lead %}
+                        • Lead: {{ team_lead.name if team_lead else 'Unassigned' }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="portal-avatar">
+                {{ emp.name[:1]|upper }}
+            </div>
+            <a href="/employee_logout" class="btn-icon-action danger" style="padding: 0.45rem 0.75rem;">
+                Logout
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-content">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div style="margin-bottom: 1.5rem;">
+                    {% for category, message in messages %}
+                        <div style="padding: 0.85rem 1.25rem; border-radius: 12px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;
+                            {% if category == 'success' %}background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3);
+                            {% elif category == 'error' %}background: rgba(244,63,94,0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.3);
+                            {% else %}background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3);{% endif %}">
+                            <span>{{ message }}</span>
+                            <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 1.2rem;">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if is_team_lead %}
+        <div class="portal-tabs">
+            <button class="portal-tab-btn {% if active_tab == 'my_portal' %}active{% endif %}" onclick="switchPortalTab('my_portal', this)">
+                🏠 My Portal
+            </button>
+            <button class="portal-tab-btn {% if active_tab == 'team_approvals' %}active{% endif %}" onclick="switchPortalTab('team_approvals', this)">
+                ✅ Team Leave Approvals
+                {% if team_pending_leaves|length > 0 %}
+                <span class="tab-count-badge">{{ team_pending_leaves|length }}</span>
+                {% endif %}
+            </button>
+            <button class="portal-tab-btn {% if active_tab == 'my_team' %}active{% endif %}" onclick="switchPortalTab('my_team', this)">
+                👥 My Team ({{ team_members|length }})
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- PORTAL TAB 1: MY PORTAL -->
+        <div id="portal-tab-my_portal" class="portal-tab-panel" style="display: {% if active_tab == 'my_portal' %}block{% else %}none{% endif %};">
+            <!-- PUNCH CARD / LIVE ATTENDANCE HERO -->
+            <div class="punch-hero-card">
+                <div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: #818cf8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                        Daily Shift Punch Clock
+                    </div>
+                    <div class="clock-display" id="liveClockDisplay">--:--:-- --</div>
+                    <div class="date-display">{{ today_date }}</div>
+
+                    <div>
+                        {% if today_att and today_att.status == 'On Leave' %}
+                            <span class="punch-status-badge" style="background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3);">
+                                🏖️ On Approved Leave Today
+                            </span>
+                        {% elif today_att and today_att.clock_in and not today_att.clock_out %}
+                            <span class="punch-status-badge working">
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block;"></span>
+                                Shift Active • Clocked in at {{ today_att.clock_in }}
+                                (<span id="elapsedTimer" style="font-family: monospace;">calculating...</span>)
+                            </span>
+                        {% elif today_att and today_att.clock_out %}
+                            <span class="punch-status-badge completed">
+                                ✓ Shift Completed Today • {{ today_att.clock_in }} to {{ today_att.clock_out }} ({{ today_att.total_hours }} hrs)
+                            </span>
+                        {% else %}
+                            <span class="punch-status-badge inactive">
+                                ⚪ Not Clocked In Today • Click button to mark attendance
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Action Buttons: Clock In / Clock Out -->
+                <div>
+                    {% if not today_att or (not today_att.clock_in and today_att.status != 'On Leave') %}
+                        <form action="/employee/clock_in" method="POST">
+                            <button type="submit" class="btn-punch btn-punch-in">
+                                🟢 Clock In (Start Shift)
+                            </button>
+                        </form>
+                    {% elif today_att.clock_in and not today_att.clock_out %}
+                        <form action="/employee/clock_out" method="POST">
+                            <button type="submit" class="btn-punch btn-punch-out">
+                                🔴 Clock Out (End Shift)
+                            </button>
+                        </form>
+                    {% else %}
+                        <div style="text-align: center; background: rgba(255,255,255,0.05); padding: 0.75rem 1.5rem; border-radius: 12px; border: 1px solid var(--card-border);">
+                            <div style="font-size: 0.85rem; color: #34d399; font-weight: 700;">Shift Logged ✓</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">See you next shift!</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 4 QUICK STATS -->
+            <div class="portal-stats-grid">
+                <div class="portal-stat-card">
+                    <div class="stat-label">Days Present This Month</div>
+                    <div class="stat-value" style="color: #34d399;">{{ days_present }}</div>
+                    <div class="stat-subtext">{{ total_hours_month }} Total Hours Logged</div>
+                </div>
+
+                <div class="portal-stat-card">
+                    <div class="stat-label">Monthly Net Salary</div>
+                    <div class="stat-value" style="color: #818cf8;">${{ "{:,.0f}".format(emp.salary.net if emp.salary else 0) }}</div>
+                    <div class="stat-subtext">Base: ${{ "{:,.0f}".format(emp.salary.base if emp.salary else 0) }} • Status: Paid</div>
+                </div>
+
+                <div class="portal-stat-card">
+                    <div class="stat-label">Leave Balance Remaining ({{ year_stats.year }})</div>
+                    <div class="stat-value" style="color: #fbbf24;">
+                        {{ year_stats.casual_remaining + year_stats.yearly_remaining }} Days
+                    </div>
+                    <div class="stat-subtext">
+                        Casual: {{ year_stats.casual_remaining }}/{{ year_stats.casual_quota }} | Yearly: {{ year_stats.yearly_remaining }}/{{ year_stats.yearly_quota }}
+                    </div>
+                </div>
+
+                <div class="portal-stat-card">
+                    <div class="stat-label">Role & Approval Chain</div>
+                    <div class="stat-value" style="font-size: 1.15rem; font-weight: 700;">{{ emp.role }}</div>
+                    <div class="stat-subtext">
+                        {{ emp.department }} •
+                        {% if is_team_lead %}
+                            Approver: HR Admin
+                        {% elif team_lead %}
+                            Lead: {{ team_lead.name }}
+                        {% else %}
+                            <span style="color: #fb7185;">No Team Lead assigned</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2-COLUMN SPLIT: INTERACTIVE CALENDAR & LEAVE MANAGEMENT -->
+            <div class="portal-split-layout">
+                <!-- LEFT: ATTENDANCE CALENDAR -->
+                <div class="glass-box">
+                    <div class="box-title-bar">
+                        <h3>📅 My Attendance Calendar</h3>
+                        <div class="calendar-nav-bar" style="margin: 0; gap: 0.5rem;">
+                            <button class="btn-icon-action" onclick="navMonth(-1)">&larr;</button>
+                            <span id="currentMonthYearLabel" style="font-weight: 700; color: white; min-width: 140px; text-align: center;"></span>
+                            <button class="btn-icon-action" onclick="navMonth(1)">&rarr;</button>
+                        </div>
+                    </div>
+
+                    <div class="cal-grid" style="margin-bottom: 0.5rem;">
+                        <div class="cal-header-cell">Sun</div>
+                        <div class="cal-header-cell">Mon</div>
+                        <div class="cal-header-cell">Tue</div>
+                        <div class="cal-header-cell">Wed</div>
+                        <div class="cal-header-cell">Thu</div>
+                        <div class="cal-header-cell">Fri</div>
+                        <div class="cal-header-cell">Sat</div>
+                    </div>
+
+                    <div id="calendarDaysGrid" class="cal-grid"></div>
+
+                    <!-- Legend -->
+                    <div style="display: flex; gap: 1rem; margin-top: 1.25rem; font-size: 0.78rem; color: var(--text-muted); justify-content: center; flex-wrap: wrap;">
+                        <span style="display: flex; align-items: center; gap: 0.35rem;"><span style="width: 10px; height: 10px; border-radius: 2px; background: rgba(16,185,129,0.3); border: 1px solid #10b981;"></span> Present</span>
+                        <span style="display: flex; align-items: center; gap: 0.35rem;"><span style="width: 10px; height: 10px; border-radius: 2px; background: rgba(245,158,11,0.3); border: 1px solid #f59e0b;"></span> On Leave</span>
+                        <span style="display: flex; align-items: center; gap: 0.35rem;"><span style="width: 10px; height: 10px; border-radius: 2px; background: rgba(99,102,241,0.3); border: 1px solid #6366f1;"></span> Clocked In Today</span>
+                    </div>
+                </div>
+
+                <!-- RIGHT: LEAVE APPLICATION & MY REQUESTS -->
+                <div class="glass-box">
+                    <div class="box-title-bar">
+                        <h3>🏖️ Leave Management</h3>
+                        <button onclick="openLeaveModal()" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.88rem;">
+                            ➕ Ask for Leave
+                        </button>
+                    </div>
+
+                    <!-- 2-Tier Balance Breakdown -->
+                    <div class="leave-balances-grid">
+                        <div class="leave-bal-box">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                <h4>{{ year_stats.casual_remaining }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">/ {{ year_stats.casual_quota }}</span></h4>
+                                <span style="font-size: 0.7rem; color: #fbbf24; font-weight: 600;">Max 12/yr</span>
+                            </div>
+                            <p>Casual Leave Remaining ({{ year_stats.approved_casual }} used{% if year_stats.pending_casual %}, {{ year_stats.pending_casual }} pending{% endif %})</p>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ ((year_stats.approved_casual / year_stats.casual_quota * 100) if year_stats.casual_quota > 0 else 0)|round }}%; background: linear-gradient(90deg, #f59e0b, #fbbf24);"></div>
+                            </div>
+                        </div>
+                        <div class="leave-bal-box">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                <h4>{{ year_stats.yearly_remaining }} <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500;">/ {{ year_stats.yearly_quota }}</span></h4>
+                                <span style="font-size: 0.7rem; color: #818cf8; font-weight: 600;">Annual Pool</span>
+                            </div>
+                            <p>Yearly Leave Remaining ({{ year_stats.approved_yearly }} used{% if year_stats.pending_yearly %}, {{ year_stats.pending_yearly }} pending{% endif %})</p>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ ((year_stats.approved_yearly / year_stats.yearly_quota * 100) if year_stats.yearly_quota > 0 else 0)|round }}%; background: linear-gradient(90deg, #6366f1, #a855f7);"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; padding: 0.6rem 0.85rem; font-size: 0.77rem; color: #cbd5e1; margin-bottom: 1.1rem;">
+                        <strong>Policy:</strong> First {{ year_stats.casual_quota }} leave day(s)/year deduct from <strong>Casual Leave</strong> (max 12/yr); further days use <strong>Yearly Leave</strong>.
+                        {% if is_team_lead %}
+                            Your requests go directly to <strong>HR Admin</strong>.
+                        {% else %}
+                            Requests route to <strong>Team Lead ({{ team_lead.name if team_lead else 'Unassigned' }})</strong> before HR.
+                        {% endif %}
+                        Only HR can convert Casual ↔ Yearly.
+                    </div>
+
+                    <!-- My Recent Requests -->
+                    <h4 style="margin: 0 0 0.85rem 0; font-size: 0.95rem; color: #cbd5e1;">My Leave Applications</h4>
+                    <div style="max-height: 310px; overflow-y: auto;">
+                        {% for req in my_leaves %}
+                        <div class="leave-req-item">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem;">
+                                <div>
+                                    <div style="font-weight: 700; color: white; font-size: 0.9rem;">
+                                        {{ req.leave_type }} ({{ req.days }} day{{ 's' if req.days != 1 else '' }})
+                                    </div>
+                                    <div style="font-size: 0.78rem; color: #818cf8; margin-top: 0.15rem;">
+                                        {{ req.start_date }} → {{ req.end_date }}
+                                        {% if req.hr_type_override %}
+                                        <span style="margin-left: 0.4rem; font-size: 0.7rem; background: rgba(168,85,247,0.2); color: #c4b5fd; padding: 0.1rem 0.4rem; border-radius: 4px;">Reclassified by HR</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    {% if req.status == 'approved' %}
+                                        <span class="status-badge-leave approved">Approved ✓</span>
+                                    {% elif req.status == 'pending_hr' %}
+                                        <span class="status-badge-leave pending_hr">Lead Approved • Pending HR</span>
+                                    {% elif req.status == 'pending_lead' %}
+                                        <span class="status-badge-leave pending_lead">Pending Team Lead</span>
+                                    {% elif req.status == 'rejected_by_lead' %}
+                                        <span class="status-badge-leave rejected">Rejected by Lead ✕</span>
+                                    {% elif req.status in ('rejected_by_hr', 'rejected') %}
+                                        <span class="status-badge-leave rejected">Rejected by HR ✕</span>
+                                    {% else %}
+                                        <span class="status-badge-leave pending_lead">{{ req.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- 3-Step Approval Pipeline -->
+                            <div class="pipeline-steps">
+                                <span class="pipe-step done">1. Submitted</span>
+                                <span>→</span>
+                                {% if req.status == 'pending_lead' %}
+                                    <span class="pipe-step current">2. Team Lead ({{ req.assigned_team_lead_name or 'Lead' }})</span>
+                                    <span>→</span>
+                                    <span class="pipe-step">3. HR Approval</span>
+                                {% elif req.status == 'rejected_by_lead' %}
+                                    <span class="pipe-step rejected">2. Rejected by {{ req.lead_reviewed_by or 'Lead' }}</span>
+                                    <span>→</span>
+                                    <span class="pipe-step">3. HR (Stopped)</span>
+                                {% elif req.status == 'pending_hr' %}
+                                    <span class="pipe-step done">2. {{ req.lead_reviewed_by or 'Lead' }} ✓</span>
+                                    <span>→</span>
+                                    <span class="pipe-step current">3. Pending HR</span>
+                                {% elif req.status == 'approved' %}
+                                    <span class="pipe-step done">2. {{ req.lead_reviewed_by or 'Lead' }} ✓</span>
+                                    <span>→</span>
+                                    <span class="pipe-step done">3. HR Approved ✓</span>
+                                {% else %}
+                                    <span class="pipe-step done">2. {{ req.lead_reviewed_by or 'Lead' }} ✓</span>
+                                    <span>→</span>
+                                    <span class="pipe-step rejected">3. Rejected by HR</span>
+                                {% endif %}
+                            </div>
+
+                            {% if req.lead_remarks %}
+                            <div style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">
+                                Team Lead: "{{ req.lead_remarks }}"
+                            </div>
+                            {% endif %}
+                            {% if req.remarks %}
+                            <div style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">
+                                HR: "{{ req.remarks }}"
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div style="text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.88rem;">
+                            No leave applications yet. Click "Ask for Leave" above whenever you need time off.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if is_team_lead %}
+        <!-- PORTAL TAB 2: TEAM LEAVE APPROVALS -->
+        <div id="portal-tab-team_approvals" class="portal-tab-panel" style="display: {% if active_tab == 'team_approvals' %}block{% else %}none{% endif %};">
+            <div class="glass-box" style="margin-bottom: 1.5rem;">
+                <div class="box-title-bar">
+                    <div>
+                        <h3 style="margin: 0;">✅ Team Leave Requests Awaiting Your Approval</h3>
+                        <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; color: var(--text-muted);">
+                            Employees cannot send leaves directly to HR. Approving forwards the request to HR for final approval.
+                        </p>
+                    </div>
+                </div>
+
+                {% for req in team_pending_leaves %}
+                {% set m_stats = team_member_stats.get(req.employee_id) %}
+                <div class="leave-req-item" style="background: rgba(15,23,42,0.75); border-color: rgba(245,158,11,0.35);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+                        <div style="flex: 1; min-width: 260px;">
+                            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                                <strong style="color: white; font-size: 1.05rem;">{{ req.employee_name }}</strong>
+                                <span style="font-size: 0.78rem; color: #818cf8; font-family: monospace;">{{ req.employee_id }}</span>
+                                <span class="status-badge-leave pending_lead">{{ req.leave_type }} • {{ req.days }} day(s)</span>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #cbd5e1; margin-top: 0.35rem;">
+                                <strong>Dates:</strong> {{ req.start_date }} → {{ req.end_date }}
+                                {% if m_stats %}
+                                <span style="margin-left: 0.75rem; font-size: 0.78rem; color: #94a3b8;">
+                                    (Member Balance: Casual {{ m_stats.casual_remaining }}/{{ m_stats.casual_quota }} • Yearly {{ m_stats.yearly_remaining }}/{{ m_stats.yearly_quota }})
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.45rem; background: rgba(0,0,0,0.25); padding: 0.55rem 0.8rem; border-radius: 8px; border-left: 3px solid #6366f1;">
+                                "{{ req.reason or 'No reason specified' }}"
+                            </div>
+                        </div>
+
+                        <form action="/team_lead/leave/{{ req.id }}/review" method="POST" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <input type="text" name="remarks" placeholder="Team Lead remarks (optional)" class="form-input" style="margin: 0; width: 220px;">
+                            <button type="submit" name="decision" value="approve" class="btn-approve-lead">
+                                ✓ Approve &amp; Forward to HR
+                            </button>
+                            <button type="submit" name="decision" value="reject" class="btn-reject-lead">
+                                ✕ Reject
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 2.25rem; color: var(--text-muted);">
+                    🎉 No pending leave requests from your team members right now.
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="glass-box">
+                <h3 style="margin: 0 0 1rem 0; font-size: 1.05rem;">Team Leave History</h3>
+                <div style="overflow-x: auto;">
+                    <table class="team-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Allocation</th>
+                                <th>Dates</th>
+                                <th>Days</th>
+                                <th>Status</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in team_history_leaves %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600; color: white;">{{ req.employee_name }}</div>
+                                    <div style="font-size: 0.75rem; color: #818cf8;">{{ req.employee_id }}</div>
+                                </td>
+                                <td>{{ req.leave_type }}</td>
+                                <td>{{ req.start_date }} → {{ req.end_date }}</td>
+                                <td><strong>{{ req.days }}</strong></td>
+                                <td>
+                                    {% if req.status == 'pending_hr' %}
+                                        <span class="status-badge-leave pending_hr">Forwarded to HR</span>
+                                    {% elif req.status == 'approved' %}
+                                        <span class="status-badge-leave approved">HR Approved ✓</span>
+                                    {% elif req.status == 'rejected_by_lead' %}
+                                        <span class="status-badge-leave rejected">Rejected by You</span>
+                                    {% else %}
+                                        <span class="status-badge-leave rejected">Rejected by HR</span>
+                                    {% endif %}
+                                </td>
+                                <td style="font-size: 0.82rem; color: #94a3b8;">
+                                    {% if req.lead_remarks %}Lead: {{ req.lead_remarks }}{% endif %}
+                                    {% if req.remarks %} | HR: {{ req.remarks }}{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No past team leave records yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PORTAL TAB 3: MY TEAM -->
+        <div id="portal-tab-my_team" class="portal-tab-panel" style="display: {% if active_tab == 'my_team' %}block{% else %}none{% endif %};">
+            <div class="glass-box">
+                <div class="box-title-bar">
+                    <h3 style="margin: 0;">👥 Direct Reports Assigned to You ({{ team_members|length }})</h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="team-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Role &amp; Dept</th>
+                                <th>Today's Attendance</th>
+                                <th>Casual Remaining</th>
+                                <th>Yearly Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in team_members %}
+                            {% set att = team_att_by_emp.get(m.id) %}
+                            {% set ms = team_member_stats.get(m.id) %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600; color: white;">{{ m.name }}</div>
+                                    <div style="font-size: 0.75rem; color: #818cf8;">{{ m.id }} • {{ m.email }}</div>
+                                </td>
+                                <td>
+                                    <div>{{ m.role }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ m.department }}</div>
+                                </td>
+                                <td>
+                                    {% if att and att.status == 'On Leave' %}
+                                        <span class="status-badge-leave pending_lead">On Leave</span>
+                                    {% elif att and att.clock_in and not att.clock_out %}
+                                        <span class="status-badge-leave approved">Clocked In ({{ att.clock_in }})</span>
+                                    {% elif att and att.clock_out %}
+                                        <span class="status-badge-leave pending_hr">Done ({{ att.total_hours }}h)</span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted); font-size: 0.82rem;">Not Clocked In</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ ms.casual_remaining if ms else 0 }}</strong> / {{ ms.casual_quota if ms else 12 }}
+                                </td>
+                                <td>
+                                    <strong>{{ ms.yearly_remaining if ms else 0 }}</strong> / {{ ms.yearly_quota if ms else 15 }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No direct reports assigned to you yet. HR Admin can assign team members in the HR Directory.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- MODAL: ASK FOR LEAVE -->
+    <div id="leaveModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>📝 Ask for Leave / Apply</h3>
+                <button onclick="closeLeaveModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-content-inner">
+                {% if not is_team_lead and not team_lead %}
+                <div style="background: rgba(244,63,94,0.15); border: 1px solid rgba(244,63,94,0.35); color: #fb7185; border-radius: 10px; padding: 0.85rem; margin-bottom: 1rem; font-size: 0.86rem;">
+                    ⚠️ No Team Lead is currently assigned to your profile. Please ask HR Admin to assign your Team Lead before submitting a leave request.
+                </div>
+                {% endif %}
+
+                <form action="/employee/apply_leave" method="POST">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label class="form-label">Start Date *</label>
+                            <input type="date" name="start_date" id="leaveStartDate" class="form-input" onchange="updateLeavePreview()" required>
+                        </div>
+                        <div>
+                            <label class="form-label">End Date *</label>
+                            <input type="date" name="end_date" id="leaveEndDate" class="form-input" onchange="updateLeavePreview()" required>
+                        </div>
+                    </div>
+
+                    <div id="leaveAllocationPreview" style="background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.28); border-radius: 10px; padding: 0.85rem; margin-bottom: 1rem; font-size: 0.84rem; color: #e2e8f0;">
+                        Select start and end dates to preview automatic Casual / Yearly allocation.
+                        <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 0.3rem;">
+                            Available now: <strong>{{ year_stats.casual_available }} Casual</strong> (max 12/yr) + <strong>{{ year_stats.yearly_available }} Yearly</strong>.
+                        </div>
+                    </div>
+
+                    <label class="form-label">Reason for Leave *</label>
+                    <textarea name="reason" class="form-input" rows="3" placeholder="{% if is_team_lead %}Explain the reason for taking leave (sent to HR Admin)...{% else %}Explain the reason for taking leave (sent to Team Lead {{ team_lead.name if team_lead else '' }})...{% endif %}" required></textarea>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+                        <button type="button" onclick="closeLeaveModal()" class="btn-icon-action">Cancel</button>
+                        <button type="submit" id="submitLeaveBtn" class="btn-primary" style="background: linear-gradient(135deg, #6366f1, #a855f7);" {% if not is_team_lead and not team_lead %}disabled{% endif %}>
+                            {% if is_team_lead %}Send to HR Admin{% else %}Send to Team Lead{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CASUAL_AVAIL = {{ year_stats.casual_available }};
+        const YEARLY_AVAIL = {{ year_stats.yearly_available }};
+        const IS_TEAM_LEAD = {{ 'true' if is_team_lead else 'false' }};
+        const ASSIGNED_LEAD_NAME = {{ (team_lead.name if team_lead else '')|tojson }};
+        const HAS_APPROVER = IS_TEAM_LEAD || Boolean(ASSIGNED_LEAD_NAME);
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+        }
+
+        // Portal Tabs (Team Lead)
+        function switchPortalTab(tabName, btnEl) {
+            document.querySelectorAll('.portal-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.portal-tab-panel').forEach(p => p.style.display = 'none');
+            const panel = document.getElementById('portal-tab-' + tabName);
+            if (panel) panel.style.display = 'block';
+            if (btnEl) btnEl.classList.add('active');
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tabName);
+            window.history.pushState({}, '', url);
+        }
+
+        // Notification Bell
+        function toggleEmpNotifDropdown() {
+            const dd = document.getElementById('empNotifDropdown');
+            if (!dd) return;
+            dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+            if (dd.style.display === 'block') loadEmpNotifs();
+        }
+
+        function loadEmpNotifs() {
+            fetch('/api/notifications?scope=employee')
+                .then(r => r.json())
+                .then(data => {
+                    const list = document.getElementById('empNotifList');
+                    const badge = document.getElementById('empNotifBadge');
+                    if (!list || !badge) return;
+                    if (data.unread_count > 0) {
+                        badge.style.display = 'flex';
+                        badge.textContent = data.unread_count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                    if (!data.notifications || data.notifications.length === 0) {
+                        list.innerHTML = '<div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.82rem;">No notifications yet</div>';
+                        return;
+                    }
+                    list.innerHTML = data.notifications.map(n => `
+                        <div style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); background: ${n.read ? 'transparent' : 'rgba(99,102,241,0.1)'};">
+                            <div style="display: flex; justify-content: space-between; gap: 0.5rem;">
+                                <strong style="font-size: 0.82rem; color: ${n.read ? '#94a3b8' : 'white'};">${escapeHtml(n.title)}</strong>
+                                <span style="font-size: 0.7rem; color: #64748b;">${escapeHtml((n.created_at || '').substring(11, 16))}</span>
+                            </div>
+                            <div style="font-size: 0.78rem; color: #cbd5e1; margin-top: 0.2rem;">${escapeHtml(n.message)}</div>
+                        </div>
+                    `).join('');
+                })
+                .catch(err => console.error('Notifications error:', err));
+        }
+
+        function markAllEmpNotifsRead() {
+            fetch('/api/notifications/mark_all_read?scope=employee', { method: 'POST' })
+                .then(() => loadEmpNotifs());
+        }
+
+        loadEmpNotifs();
+        setInterval(loadEmpNotifs, 15000);
+        window.addEventListener('click', function(e) {
+            const dd = document.getElementById('empNotifDropdown');
+            const btn = document.getElementById('empNotifBtn');
+            if (dd && btn && !dd.contains(e.target) && !btn.contains(e.target)) {
+                dd.style.display = 'none';
+            }
+        });
+
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            const formatted = String(hours).padStart(2, '0') + ':' + minutes + ':' + seconds + ' ' + ampm;
+            const el = document.getElementById('liveClockDisplay');
+            if (el) el.innerText = formatted;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Elapsed shift timer if clocked in
+        {% if today_att and today_att.clock_in and not today_att.clock_out %}
+        const clockInStr = "{{ today_att.clock_in }}";
+        function updateElapsed() {
+            const el = document.getElementById('elapsedTimer');
+            if (!el) return;
+            const now = new Date();
+            const parts = clockInStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (parts) {
+                let h = parseInt(parts[1]);
+                const m = parseInt(parts[2]);
+                const ampm = parts[3].toUpperCase();
+                if (ampm === 'PM' && h < 12) h += 12;
+                if (ampm === 'AM' && h === 12) h = 0;
+                const clockInDate = new Date();
+                clockInDate.setHours(h, m, 0, 0);
+
+                let diffSecs = Math.max(0, Math.floor((now - clockInDate) / 1000));
+                const eh = Math.floor(diffSecs / 3600);
+                diffSecs %= 3600;
+                const em = Math.floor(diffSecs / 60);
+                const es = diffSecs % 60;
+                el.innerText = eh + 'h ' + em + 'm ' + es + 's';
+            }
+        }
+        setInterval(updateElapsed, 1000);
+        updateElapsed();
+        {% endif %}
+
+        // Leave Modal & Auto-Allocation Preview
+        function openLeaveModal() {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            document.getElementById('leaveStartDate').min = todayStr;
+            document.getElementById('leaveEndDate').min = todayStr;
+            updateLeavePreview();
+            document.getElementById('leaveModal').classList.add('show');
+        }
+        function closeLeaveModal() {
+            document.getElementById('leaveModal').classList.remove('show');
+        }
+        function updateLeavePreview() {
+            const s = document.getElementById('leaveStartDate').value;
+            const e = document.getElementById('leaveEndDate').value;
+            const box = document.getElementById('leaveAllocationPreview');
+            const btn = document.getElementById('submitLeaveBtn');
+            if (!s || !e) {
+                if (btn) btn.disabled = !HAS_APPROVER;
+                return;
+            }
+            const d1 = new Date(s + 'T00:00:00');
+            const d2 = new Date(e + 'T00:00:00');
+            if (d2 < d1) {
+                box.style.borderColor = 'rgba(244,63,94,0.5)';
+                box.innerHTML = '<span style="color:#fb7185;">⚠️ End date cannot be earlier than start date.</span>';
+                if (btn) btn.disabled = true;
+                return;
+            }
+            if (d1.getFullYear() !== d2.getFullYear()) {
+                box.style.borderColor = 'rgba(244,63,94,0.5)';
+                box.innerHTML = '<span style="color:#fb7185;">⚠️ Requests spanning across two calendar years must be submitted separately per year.</span>';
+                if (btn) btn.disabled = true;
+                return;
+            }
+            const days = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+            const totalAvail = CASUAL_AVAIL + YEARLY_AVAIL;
+            if (days > totalAvail) {
+                box.style.borderColor = 'rgba(244,63,94,0.5)';
+                box.innerHTML = `<span style="color:#fb7185;">⚠️ Insufficient balance: requested <strong>${days} day(s)</strong>, available <strong>${totalAvail} day(s)</strong> (${CASUAL_AVAIL} Casual + ${YEARLY_AVAIL} Yearly).</span>`;
+                if (btn) btn.disabled = true;
+                return;
+            }
+            const cDays = Math.min(days, CASUAL_AVAIL);
+            const yDays = days - cDays;
+            const target = IS_TEAM_LEAD ? 'HR Admin' : ('Team Lead ' + escapeHtml(ASSIGNED_LEAD_NAME));
+            box.style.borderColor = 'rgba(16,185,129,0.45)';
+            box.innerHTML = `
+                <div><strong>Auto-Allocation (${days} day${days !== 1 ? 's' : ''}):</strong>
+                    <span style="color:#fbbf24;">${cDays} Casual</span> +
+                    <span style="color:#a5b4fc;">${yDays} Yearly</span>
+                </div>
+                <div style="font-size:0.76rem; color:#94a3b8; margin-top:0.25rem;">
+                    First 12 leaves/year use Casual Leave; excess spills to Yearly. Sent to <strong>${target}</strong>.
+                </div>
+            `;
+            if (btn) btn.disabled = !HAS_APPROVER;
+        }
+
+        // Calendar Logic
+        const nowInit = new Date();
+        let curYear = nowInit.getFullYear();
+        let curMonth = nowInit.getMonth() + 1;
+
+        function navMonth(delta) {
+            curMonth += delta;
+            if (curMonth > 12) {
+                curMonth = 1;
+                curYear += 1;
+            } else if (curMonth < 1) {
+                curMonth = 12;
+                curYear -= 1;
+            }
+            fetchMonthAttendance();
+        }
+
+        async function fetchMonthAttendance() {
+            const mStr = curYear + '-' + String(curMonth).padStart(2, '0');
+            const d = new Date(curYear, curMonth - 1, 1);
+            const mName = d.toLocaleString('default', { month: 'long' });
+            document.getElementById('currentMonthYearLabel').innerText = mName + ' ' + curYear;
+
+            try {
+                const res = await fetch('/api/employee/my_attendance?month=' + mStr);
+                const data = await res.json();
+                renderEmployeeCalendar(data.attendance || []);
+            } catch (e) {
+                console.error(e);
+                renderEmployeeCalendar([]);
+            }
+        }
+
+        function renderEmployeeCalendar(records) {
+            const grid = document.getElementById('calendarDaysGrid');
+            grid.innerHTML = '';
+
+            const firstDay = new Date(curYear, curMonth - 1, 1).getDay();
+            const totalDays = new Date(curYear, curMonth, 0).getDate();
+
+            const recMap = {};
+            records.forEach(r => {
+                recMap[r.date] = r;
+            });
+
+            for (let i = 0; i < firstDay; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-day-cell empty';
+                grid.appendChild(empty);
+            }
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+
+            for (let day = 1; day <= totalDays; day++) {
+                const dStr = curYear + '-' + String(curMonth).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                const cell = document.createElement('div');
+                cell.className = 'cal-day-cell';
+                if (dStr === todayStr) cell.classList.add('today');
+
+                const rec = recMap[dStr];
+                let tag = '';
+                if (rec) {
+                    if (rec.status === 'Present') {
+                        cell.classList.add('present');
+                        tag = '<span class="cal-status-badge green">' + (rec.total_hours ? rec.total_hours + 'h' : 'Present') + '</span>';
+                    } else if (rec.status === 'On Leave') {
+                        cell.classList.add('leave');
+                        tag = '<span class="cal-status-badge amber">Leave</span>';
+                    } else if (rec.clock_in && !rec.clock_out) {
+                        cell.classList.add('present');
+                        tag = '<span class="cal-status-badge purple">In: ' + rec.clock_in + '</span>';
+                    }
+                }
+
+                cell.innerHTML = '<span class="cal-date-number">' + day + '</span>' + tag;
+                grid.appendChild(cell);
+            }
+        }
+
+        // Initial Load
+        fetchMonthAttendance();
+    </script>
+</body>
+</html>

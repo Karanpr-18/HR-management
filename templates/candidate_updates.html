@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Hub & Progress | TalentAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-dashboard.css') }}">
+    <style>
+        :root {
+            --app-h: calc(100vh - 72px);
+            --feed-bg: #0d1218;
+            --chat-left-bg: #1e2634;
+            --chat-hr-bg: linear-gradient(135deg, #6366f1, #7c3aed);
+            --chat-internal-bg: rgba(245, 158, 11, 0.12);
+            --chat-internal-border: rgba(245, 158, 11, 0.35);
+        }
+
+        .chat-app-container {
+            display: flex;
+            height: var(--app-h);
+            overflow: hidden;
+            background: var(--dark-bg);
+        }
+
+        /* Left Candidate List */
+        .candidate-directory {
+            width: 360px;
+            min-width: 320px;
+            max-width: 400px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .dir-header {
+            padding: 1.25rem 1.25rem 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .dir-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .dir-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dir-search-box {
+            position: relative;
+            margin-bottom: 0.75rem;
+        }
+
+        .dir-search-box input {
+            width: 100%;
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.55rem 0.75rem 0.55rem 2.2rem;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .dir-search-box input:focus {
+            border-color: #8b5cf6;
+        }
+
+        .dir-search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .dir-filter-chips {
+            display: flex;
+            gap: 0.4rem;
+            overflow-x: auto;
+            padding-bottom: 0.3rem;
+        }
+
+        .dir-filter-chips::-webkit-scrollbar {
+            height: 3px;
+        }
+
+        .dir-chip {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.15s;
+            border: 1px solid transparent;
+        }
+
+        .dir-chip:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dir-chip.active {
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            border-color: rgba(139, 92, 246, 0.4);
+            font-weight: 600;
+        }
+
+        .dir-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .dir-list::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .dir-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .candidate-thread-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.85rem;
+            border-radius: 10px;
+            background: transparent;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        .candidate-thread-card:hover {
+            background: var(--hover-bg);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .candidate-thread-card.active {
+            background: rgba(99, 102, 241, 0.12);
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .thread-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .thread-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .thread-row-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.2rem;
+        }
+
+        .thread-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .thread-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .thread-role {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 0.35rem;
+        }
+
+        .thread-preview {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .thread-tags {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-top: 0.35rem;
+            flex-wrap: wrap;
+        }
+
+        .stage-pill {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .stage-screening { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .stage-round1 { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); }
+        .stage-round2 { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .stage-round3 { background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.3); }
+        .stage-offer { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .stage-onboarding { background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(59, 130, 246, 0.3)); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.5); font-weight: 800; }
+        .stage-finished { background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.5)); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.6); font-weight: 800; box-shadow: 0 0 10px rgba(16, 185, 129, 0.25); }
+        .stage-rejected { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        .reschedule-alert-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f59e0b;
+            box-shadow: 0 0 8px #f59e0b;
+            display: inline-block;
+        }
+
+        /* Main Conversation Hub (Right) */
+        .chat-hub {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--feed-bg);
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Top Candidate Header Bar */
+        .chat-top-header {
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.9rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            z-index: 10;
+        }
+
+        .chat-user-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.9rem;
+        }
+
+        .chat-avatar-lg {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.15rem;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .chat-candidate-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chat-candidate-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.15rem;
+        }
+
+        .chat-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-action-sm {
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .btn-action-primary {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+        }
+
+        .btn-action-primary:hover {
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-action-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-action-secondary:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-action-success {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .btn-action-success:hover {
+            background: rgba(16, 185, 129, 0.25);
+        }
+
+        /* Pipeline Stepper Bar */
+        /* Stage Selector Bar: Dropdown Only */
+        .stage-selector-wrap {
+            background: #121822;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .stage-dropdown-select {
+            background: #1a2230;
+            border: 1px solid rgba(139, 92, 246, 0.45);
+            color: #e0e7ff;
+            font-size: 0.88rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .stage-dropdown-select:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+        }
+
+        .send-target-select {
+            background: #141b26;
+            border: 1px solid var(--border-color);
+            color: #e2e8f0;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 0.45rem 0.85rem;
+            border-radius: 8px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .send-target-select:focus {
+            border-color: #8b5cf6;
+        }
+
+        /* Active Interview & Reschedule Highlights */
+        .thread-alerts-banner {
+            padding: 0.75rem 1.5rem;
+            background: #111722;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .interview-active-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+            border: 1px solid rgba(139, 92, 246, 0.35);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .reschedule-pending-card {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        /* Chat / Activity Timeline Feed */
+        .chat-feed-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .chat-feed-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-feed-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+        }
+
+        .system-pill {
+            align-self: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            padding: 0.35rem 0.9rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        /* Message Bubbles */
+        .msg-row {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 78%;
+        }
+
+        .msg-row.hr-outgoing {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-row.candidate-incoming {
+            align-self: flex-start;
+        }
+
+        .msg-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .msg-avatar.hr { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+        .msg-avatar.cand { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+        .msg-avatar.internal { background: #f59e0b; color: #1e1b4b; }
+
+        .msg-content-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .msg-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .msg-row.hr-outgoing .msg-meta-row {
+            justify-content: flex-end;
+        }
+
+        .msg-bubble {
+            padding: 0.85rem 1.1rem;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            word-break: break-word;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .msg-bubble.hr-bubble {
+            background: var(--chat-hr-bg);
+            color: #ffffff;
+            border-bottom-right-radius: 3px;
+        }
+
+        .msg-bubble.candidate-bubble {
+            background: var(--chat-left-bg);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom-left-radius: 3px;
+        }
+
+        .msg-bubble.internal-bubble {
+            background: var(--chat-internal-bg);
+            border: 1px solid var(--chat-internal-border);
+            color: #fef3c7;
+            border-radius: 12px;
+        }
+
+        .msg-bubble.interview-bubble {
+            background: linear-gradient(135deg, #1e1e38, #261f44);
+            border: 1px solid rgba(139, 92, 246, 0.4);
+            color: var(--text-primary);
+            border-radius: 12px;
+            min-width: 280px;
+        }
+
+        /* Composer Bar (Bottom) */
+        .chat-composer-bar {
+            background: var(--sidebar-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 0.85rem 1.5rem;
+            z-index: 10;
+        }
+
+        .composer-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .composer-toggles {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .internal-note-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #f59e0b;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .internal-note-toggle input {
+            accent-color: #f59e0b;
+            cursor: pointer;
+        }
+
+        .composer-input-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+
+        .composer-textarea {
+            flex: 1;
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+            min-height: 44px;
+            max-height: 120px;
+            transition: border-color 0.2s;
+        }
+
+        .composer-textarea:focus {
+            border-color: #8b5cf6;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.4rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+            height: 44px;
+        }
+
+        .btn-send:hover {
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            transform: translateY(-1px);
+        }
+
+        /* Modal Styles */
+        .hub-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hub-modal-content {
+            background: #1a2230;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 520px;
+            padding: 1.75rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            color: var(--text-primary);
+        }
+
+        .hub-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .hub-modal-header h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .form-group-modal {
+            margin-bottom: 1rem;
+        }
+
+        .form-group-modal label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.35rem;
+        }
+
+        .form-group-modal input,
+        .form-group-modal select,
+        .form-group-modal textarea {
+            width: 100%;
+            background: var(--dark-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            outline: none;
+        }
+
+        .form-group-modal input:focus,
+        .form-group-modal select:focus,
+        .form-group-modal textarea:focus {
+            border-color: #8b5cf6;
+        }
+
+        .modal-btn-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .preset-chip {
+            background: rgba(139, 92, 246, 0.12);
+            color: #c4b5fd;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.74rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .preset-chip:hover {
+            background: rgba(139, 92, 246, 0.25);
+            border-color: #8b5cf6;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .preset-chip:active {
+            transform: translateY(0);
+        }
+
+        .quick-time-chip {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 3px 8px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .quick-time-chip:hover {
+            background: rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+            color: #c4b5fd;
+        }
+
+        /* Attachment preview inside composer */
+        .attachment-preview-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px dashed rgba(139, 92, 246, 0.5);
+            border-radius: 8px;
+            padding: 0.45rem 0.85rem;
+            margin-bottom: 0.6rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .attachment-clear-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            transition: transform 0.15s;
+        }
+
+        .attachment-clear-btn:hover {
+            transform: scale(1.2);
+            color: #f87171;
+        }
+
+        /* Attachment cards inside message bubbles */
+        .msg-attachment-card {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(0, 0, 0, 0.32);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 0.55rem 0.85rem;
+            margin-top: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .msg-attachment-card:hover {
+            border-color: rgba(139, 92, 246, 0.6);
+            background: rgba(0, 0, 0, 0.45);
+        }
+
+        .attachment-card-icon {
+            font-size: 1.4rem;
+            line-height: 1;
+        }
+
+        .attachment-card-details {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .attachment-name {
+            color: #c4b5fd;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-decoration: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .attachment-name:hover {
+            text-decoration: underline;
+            color: #ffffff;
+        }
+
+        .attachment-meta-info {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .attachment-download-icon {
+            color: #a5b4fc;
+            text-decoration: none;
+            font-size: 1.1rem;
+            padding: 4px 6px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .attachment-download-icon:hover {
+            background: rgba(99, 102, 241, 0.35);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                    <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white" opacity="0.9" />
+                    <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.6" />
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="brand-name">TalentAI</span>
+            </a>
+
+            <ul class="sidebar-nav">
+                <li class="sidebar-nav-item">
+                    <a href="/overview" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        Overview
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/dashboard" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/candidate" class="sidebar-nav-link active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Candidates
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employees" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Current Employees
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employer" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        Job Context
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content" style="display: flex; flex-direction: column; height: 100vh;">
+            <!-- Top App Bar -->
+            <div class="top-header" style="padding: 0.85rem 2rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <h1 class="header-title" style="font-size: 1.35rem; margin: 0;">Candidate Progress & Messaging</h1>
+                    <span style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;">
+                        LIVE HUB
+                    </span>
+                </div>
+
+                <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
+                    <!-- Notification Bell Dropdown -->
+                    <div style="position: relative;">
+                        <button id="notifBellBtn" onclick="toggleNotifDropdown()" style="position: relative; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.55rem; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Notifications">
+                            <span style="font-size: 1.15rem;">🔔</span>
+                            <span id="notifBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; border-radius: 50%; font-size: 0.65rem; font-weight: 700; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">0</span>
+                        </button>
+                        <div id="notifDropdown" style="display: none; position: absolute; right: 0; top: 120%; width: 340px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 1000; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
+                                <strong style="font-size: 0.85rem; color: var(--text-primary);">In-App Notifications</strong>
+                                <button onclick="markAllNotificationsRead()" style="background: none; border: none; color: #8b5cf6; font-size: 0.75rem; cursor: pointer; font-weight: 600;">Mark all read</button>
+                            </div>
+                            <div id="notifList" style="max-height: 280px; overflow-y: auto;">
+                                <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">Loading notifications...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="/logout" class="btn-action-sm btn-action-secondary" style="font-size: 0.8rem;">
+                        Sign Out
+                    </a>
+                </div>
+            </div>
+
+            <!-- Flash Message Banner -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div style="padding: 0.5rem 1.5rem; background: #0f172a; border-bottom: 1px solid var(--border-color);">
+                        {% for category, message in messages %}
+                            <div style="padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 0.25rem; {% if category == 'error' %}background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- 2-Panel Messenger Interface -->
+            <div class="chat-app-container">
+                <!-- Left Panel: Candidate Directory & Threads -->
+                <aside class="candidate-directory">
+                    <div class="dir-header">
+                        <div class="dir-title-row">
+                            <span class="dir-title">
+                                <span>👥</span> Candidates
+                            </span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">
+                                {{ candidates|length }} Total
+                            </span>
+                        </div>
+
+                        <!-- Live / Search Query -->
+                        <form method="GET" action="/candidate" class="dir-search-box">
+                            <span class="dir-search-icon">🔍</span>
+                            <input type="text" name="q" value="{{ search_query }}" placeholder="Search name or role..." autocomplete="off">
+                            {% if stage_filter %}
+                            <input type="hidden" name="stage" value="{{ stage_filter }}">
+                            {% endif %}
+                        </form>
+
+                        <!-- Stage Filter Chips -->
+                        <div class="dir-filter-chips">
+                            <a href="/candidate{% if search_query %}?q={{ search_query }}{% endif %}" class="dir-chip {% if not stage_filter or stage_filter == 'all' %}active{% endif %}">
+                                All
+                            </a>
+                            <a href="/candidate?stage=Screening{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Screening' %}active{% endif %}">
+                                Screening
+                            </a>
+                            <a href="/candidate?stage=Round 1{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Round 1' %}active{% endif %}">
+                                Round 1
+                            </a>
+                            <a href="/candidate?stage=Round 2{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Round 2' %}active{% endif %}">
+                                Round 2
+                            </a>
+                            <a href="/candidate?stage=Round 3{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Round 3' %}active{% endif %}">
+                                Round 3
+                            </a>
+                            <a href="/candidate?stage=Offer{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Offer' %}active{% endif %}">
+                                Offer
+                            </a>
+                            <a href="/candidate?stage=Onboarding{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Onboarding' %}active{% endif %}">
+                                Onboarding
+                            </a>
+                            <a href="/candidate?stage=Finished{% if search_query %}&q={{ search_query }}{% endif %}" class="dir-chip {% if stage_filter == 'Finished' %}active{% endif %}">
+                                Finished
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Candidate Threads List -->
+                    <div class="dir-list">
+                        {% if not candidates %}
+                            <div style="padding: 2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                                No candidates match the search or filter.
+                            </div>
+                        {% else %}
+                            {% for c in candidates %}
+                                {% set is_selected = selected_candidate and selected_candidate.id == c.id %}
+                                <a href="/candidate?id={{ c.id }}{% if stage_filter %}&stage={{ stage_filter }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}" class="candidate-thread-card {% if is_selected %}active{% endif %}">
+                                    <div class="thread-avatar">
+                                        {{ c.name[:2]|upper if c.name else 'CA' }}
+                                        {% if c.interview and c.interview.status == 'reschedule_requested' %}
+                                            <span style="position: absolute; top: -2px; right: -2px;" class="reschedule-alert-dot" title="Reschedule requested"></span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="thread-info">
+                                        <div class="thread-row-top">
+                                            <span class="thread-name">{{ c.name or 'Candidate' }}</span>
+                                            <span class="thread-time">
+                                                {% if c.latest_event and c.latest_event.timestamp %}
+                                                    {{ c.latest_event.timestamp[11:16] }}
+                                                {% else %}
+                                                    {{ c.created_at[11:16] if c.created_at else '' }}
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <div class="thread-role">{{ c.position_title }}</div>
+                                        <div class="thread-preview">
+                                            {% if c.interview and c.interview.status == 'reschedule_requested' %}
+                                                <span style="color: #fbbf24; font-weight: 600;">⚠️ Reschedule requested</span>
+                                            {% elif c.latest_event %}
+                                                {% if c.latest_event.sender == 'hr' %}You: {% endif %}{{ c.latest_event.content|truncate(45) }}
+                                            {% else %}
+                                                Application received
+                                            {% endif %}
+                                        </div>
+                                        <div class="thread-tags">
+                                            {% set c_stage = c.stage|default('Screening') %}
+                                            <span class="stage-pill {% if 'Round 1' in c_stage %}stage-round1{% elif 'Round 2' in c_stage %}stage-round2{% elif 'Round 3' in c_stage %}stage-round3{% elif 'Offer' in c_stage %}stage-offer{% elif 'Onboarding' in c_stage %}stage-onboarding{% elif 'Finished' in c_stage %}stage-finished{% elif 'Rejected' in c_stage %}stage-rejected{% else %}stage-screening{% endif %}">
+                                                {{ c_stage }}
+                                            </span>
+                                            {% if c.final_rank_score %}
+                                                <span style="font-size: 0.65rem; color: #a78bfa; font-weight: 700; background: rgba(167, 139, 250, 0.1); padding: 2px 6px; border-radius: 999px;">
+                                                    ★ {{ c.final_rank_score }}/10
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </aside>
+
+                <!-- Right Panel: Conversation Hub & Hiring Progression -->
+                <section class="chat-hub">
+                    {% if not selected_candidate %}
+                        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); gap: 1rem;">
+                            <span style="font-size: 3rem;">💬</span>
+                            <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">No Candidate Selected</div>
+                            <div style="font-size: 0.85rem;">Select a candidate from the left list to view their communication thread and progress.</div>
+                        </div>
+                    {% else %}
+                        <!-- 1. Top Candidate Profile Header -->
+                        <div class="chat-top-header">
+                            <div class="chat-user-meta">
+                                <div class="chat-avatar-lg">
+                                    {{ selected_candidate.name[:2]|upper if selected_candidate.name else 'CA' }}
+                                </div>
+                                <div>
+                                    <div class="chat-candidate-title">
+                                        {{ selected_candidate.name or 'Candidate' }}
+                                        <span class="stage-pill {% if 'Round 1' in selected_candidate.stage %}stage-round1{% elif 'Round 2' in selected_candidate.stage %}stage-round2{% elif 'Round 3' in selected_candidate.stage %}stage-round3{% elif 'Offer' in selected_candidate.stage %}stage-offer{% elif 'Onboarding' in selected_candidate.stage %}stage-onboarding{% elif 'Finished' in selected_candidate.stage %}stage-finished{% else %}stage-screening{% endif %}">
+                                            {{ selected_candidate.stage }}
+                                        </span>
+                                    </div>
+                                    <div class="chat-candidate-sub">
+                                        <span>💼 {{ selected_position.title if selected_position else (selected_candidate.position_title or 'General Role') }}</span>
+                                        <span>•</span>
+                                        <span>📧 {{ selected_candidate.email or 'No email' }}</span>
+                                        {% if selected_candidate.phone %}
+                                            <span>•</span>
+                                            <span>📞 {{ selected_candidate.phone }}</span>
+                                        {% endif %}
+                                        {% if selected_candidate.final_rank_score %}
+                                            <span>•</span>
+                                            <span style="color: #a78bfa; font-weight: 700;">★ Score: {{ selected_candidate.final_rank_score }}/10</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chat-actions-group">
+                                {% if selected_candidate.employee_id %}
+                                    <span class="btn-action-sm" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3);">
+                                        ✓ Active Employee ({{ selected_candidate.employee_id }})
+                                    </span>
+                                {% elif selected_candidate.stage == 'Finished' or selected_candidate.status|lower == 'accepted' %}
+                                    <form action="/candidate/{{ selected_candidate.id }}/convert_to_employee" method="POST" style="display:inline;" onsubmit="return confirm('Promote and shift {{ selected_candidate.name }} to Current Employees directory?');">
+                                        <button type="submit" class="btn-action-sm btn-action-primary" style="background: linear-gradient(135deg, #10b981, #059669); border-color: rgba(16,185,129,0.4); color: white;">
+                                            <span>⚡</span> Shift to Current Employee
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                <!-- AI Resume Details Button -->
+                                <a href="/candidate/{{ selected_candidate.id }}?view=scores" class="btn-action-sm btn-action-secondary" title="View Detailed AI Score Breakdown">
+                                    <span>📊</span> View AI Analysis
+                                </a>
+
+                                <!-- Schedule Next Round Modal Trigger -->
+                                <button type="button" onclick="openScheduleRoundModal()" class="btn-action-sm btn-action-primary">
+                                    <span>📅</span> Schedule Round
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. Pipeline Stage Selector: Dropdown Only (No Buttons) -->
+                        <div class="stage-selector-wrap">
+                            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                                <label for="stageSelect" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem;">
+                                    <span>🎯 Current Stage:</span>
+                                </label>
+                                <form action="/candidate/{{ selected_candidate.id }}/stage" method="POST" style="margin: 0;">
+                                    <select name="stage" id="stageSelect" onchange="this.form.submit()" class="stage-dropdown-select">
+                                        {% for step in pipeline_stages %}
+                                            <option value="{{ step.key }}" {% if selected_candidate.stage == step.key or (step.key in selected_candidate.stage) %}selected{% endif %}>
+                                                {{ step.icon }} {{ step.label }}
+                                            </option>
+                                        {% endfor %}
+                                        <option value="Rejected" {% if selected_candidate.stage == 'Rejected' %}selected{% endif %}>
+                                            ❌ Rejected
+                                        </option>
+                                    </select>
+                                </form>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                <span style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; padding: 3px 9px; border-radius: 999px; font-weight: 600; font-size: 0.72rem;">
+                                    {{ selected_candidate.stage }}
+                                </span>
+                                <button type="button" onclick="openScheduleRoundModal()" class="btn-action-sm btn-action-primary" style="font-size: 0.8rem; padding: 0.4rem 0.85rem;">
+                                    <span>📅</span> Schedule Date & Time for Round
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. Active Interview / Reschedule Highlight Banners -->
+                        {% set intv = selected_candidate.interview %}
+                        {% if intv %}
+                            <div class="thread-alerts-banner">
+                                {% if intv.status == 'reschedule_requested' %}
+                                    <!-- Candidate Reschedule Request Action Banner -->
+                                    <div class="reschedule-pending-card">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <span style="font-size: 1.5rem;">⚠️</span>
+                                            <div>
+                                                <div style="font-weight: 700; color: #fbbf24; font-size: 0.95rem;">
+                                                    Reschedule Requested by Candidate
+                                                </div>
+                                                <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">
+                                                    Proposed Time: <strong style="color: #fef3c7;">{{ intv.reschedule_request.proposed_date }} at {{ intv.reschedule_request.proposed_time }}</strong>
+                                                    {% if intv.reschedule_request.reason %} • <em>Reason: {{ intv.reschedule_request.reason }}</em>{% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                            <!-- Approve Candidate's Proposed Slot -->
+                                            <form action="/candidate/{{ selected_candidate.id }}/resolve_reschedule" method="POST" style="margin: 0;">
+                                                <input type="hidden" name="decision" value="approve">
+                                                <button type="submit" class="btn-action-sm btn-action-success">
+                                                    ✅ Approve Slot
+                                                </button>
+                                            </form>
+                                            <!-- Propose Counter Slot -->
+                                            <button type="button" onclick="openCounterModal('{{ intv.reschedule_request.proposed_date }}', '{{ intv.reschedule_request.proposed_time }}')" class="btn-action-sm btn-action-secondary">
+                                                🔄 Counter Slot
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                {% elif intv.status == 'confirmed' %}
+                                    <div class="interview-active-card">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <span style="font-size: 1.5rem;">✅</span>
+                                            <div>
+                                                <div style="font-weight: 700; color: #34d399; font-size: 0.95rem;">
+                                                    {{ intv.round_title }} Confirmed
+                                                </div>
+                                                <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">
+                                                    📅 <strong>{{ intv.date }} at {{ intv.time }}</strong>
+                                                    {% if intv.hr_note %} • <em>{{ intv.hr_note }}</em>{% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" onclick="openScheduleRoundModal('{{ intv.round_title|escape }}', '{{ intv.date }}', '{{ intv.time }}', '{{ intv.hr_note|default('')|escape }}')" class="btn-action-sm btn-action-secondary" style="font-size: 0.78rem;">
+                                            ✏️ Reschedule / Change Date & Time
+                                        </button>
+                                    </div>
+
+                                {% elif intv.status == 'pending_candidate_response' %}
+                                    <div class="interview-active-card" style="border-color: rgba(99, 102, 241, 0.4);">
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <span style="font-size: 1.5rem;">⏳</span>
+                                            <div>
+                                                <div style="font-weight: 700; color: #a5b4fc; font-size: 0.95rem;">
+                                                    {{ intv.round_title }} Invitation Sent
+                                                </div>
+                                                <div style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 2px;">
+                                                    📅 Scheduled for <strong>{{ intv.date }} at {{ intv.time }}</strong> • Awaiting candidate response.
+                                                    {% if intv.hr_note %} • <em>{{ intv.hr_note }}</em>{% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" onclick="openScheduleRoundModal('{{ intv.round_title|escape }}', '{{ intv.date }}', '{{ intv.time }}', '{{ intv.hr_note|default('')|escape }}')" class="btn-action-sm btn-action-secondary" style="font-size: 0.78rem;">
+                                            ✏️ Edit Date & Time
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <!-- 4. Real-Time Chat & Activity Timeline -->
+                        <div class="chat-feed-scroll" id="chatFeed">
+                            {% if not timeline %}
+                                <div class="system-pill">
+                                    <span>🚀</span> Candidate added to system • No prior messages.
+                                </div>
+                            {% else %}
+                                {% for item in timeline %}
+                                    {% if item.type == 'system' %}
+                                        <div class="system-pill">
+                                            <span>ℹ️</span> {{ item.content }}
+                                            <span style="opacity: 0.6; font-size: 0.7rem; margin-left: 4px;">{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                        </div>
+
+                                    {% elif item.type == 'stage_change' %}
+                                        <div class="system-pill" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.25); color: #6ee7b7;">
+                                            <span>🎯</span> {{ item.content }}
+                                            <span style="opacity: 0.6; font-size: 0.7rem; margin-left: 4px;">{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                        </div>
+
+                                    {% elif item.type == 'internal_note' %}
+                                        <!-- Internal HR Team Note -->
+                                        <div class="msg-row hr-outgoing" style="align-self: center; max-width: 85%;">
+                                            <div class="msg-avatar internal" title="Internal Note">🔒</div>
+                                            <div class="msg-content-wrap">
+                                                <div class="msg-meta-row" style="color: #fbbf24;">
+                                                    <strong>🔒 Internal Team Note</strong>
+                                                    <span>•</span>
+                                                    <span>{{ item.sender_name }}</span>
+                                                    <span>•</span>
+                                                    <span>{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                                </div>
+                                                <div class="msg-bubble internal-bubble">
+                                                    <div>{{ item.content }}</div>
+                                                    {% set att = item.metadata.attachment if (item.metadata and item.metadata.attachment) else item.attachment %}
+                                                    {% if att %}
+                                                        <div class="msg-attachment-card">
+                                                            <div class="attachment-card-icon">
+                                                                {% if att.file_type in ['pdf'] %}📄
+                                                                {% elif att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}🖼️
+                                                                {% elif att.file_type in ['doc', 'docx'] %}📝
+                                                                {% elif att.file_type in ['zip', 'rar', 'tar'] %}📦
+                                                                {% else %}📎{% endif %}
+                                                            </div>
+                                                            <div class="attachment-card-details">
+                                                                <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" class="attachment-name" title="Download {{ att.filename }}">
+                                                                    {{ att.filename }}
+                                                                </a>
+                                                                <span class="attachment-meta-info">{{ att.file_size }} • {{ att.file_type|upper }}</span>
+                                                            </div>
+                                                            <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" class="attachment-download-icon" title="Download">
+                                                                ⬇️
+                                                            </a>
+                                                        </div>
+                                                        {% if att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}
+                                                            <div style="margin-top: 0.5rem;">
+                                                                <a href="{{ att.file_url }}" target="_blank">
+                                                                    <img src="{{ att.file_url }}" alt="{{ att.filename }}" style="max-width: 260px; max-height: 200px; border-radius: 8px; display: block; border: 1px solid rgba(255,255,255,0.15);">
+                                                                </a>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    {% elif item.type == 'interview' %}
+                                        <!-- Interview Announcement Card inside Feed -->
+                                        <div class="msg-row hr-outgoing" style="max-width: 75%;">
+                                            <div class="msg-avatar hr">📅</div>
+                                            <div class="msg-content-wrap">
+                                                <div class="msg-meta-row">
+                                                    <span>HR Team</span>
+                                                    <span>•</span>
+                                                    <span>{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                                </div>
+                                                <div class="msg-bubble interview-bubble">
+                                                    <div style="font-weight: 700; color: #c4b5fd; margin-bottom: 0.4rem; font-size: 0.95rem;">
+                                                        🎙️ {{ item.metadata.round_title if (item.metadata and item.metadata.round_title) else 'Interview Round' }}
+                                                    </div>
+                                                    <div style="font-size: 0.85rem; margin-bottom: 0.4rem;">
+                                                        {{ item.content }}
+                                                    </div>
+                                                    {% if item.metadata and item.metadata.hr_note %}
+                                                        <div style="font-size: 0.82rem; color: #e0e7ff; background: rgba(0,0,0,0.28); padding: 0.5rem 0.75rem; border-radius: 8px; border-left: 3px solid #8b5cf6; margin-top: 0.4rem;">
+                                                            <strong>📝 Preparation Instructions:</strong> {{ item.metadata.hr_note }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    {% elif item.type == 'reschedule' %}
+                                        <!-- Reschedule Card inside Feed -->
+                                        <div class="msg-row candidate-incoming" style="max-width: 80%;">
+                                            <div class="msg-avatar" style="background: #f59e0b; color: #1e1b4b;">⚠️</div>
+                                            <div class="msg-content-wrap">
+                                                <div class="msg-meta-row">
+                                                    <span>{{ item.sender_name }}</span>
+                                                    <span>•</span>
+                                                    <span>{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                                </div>
+                                                <div class="msg-bubble" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fef3c7;">
+                                                    <strong>Reschedule Notice:</strong> {{ item.content }}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    {% elif item.sender == 'hr' %}
+                                        <!-- Outgoing HR Message -->
+                                        <div class="msg-row hr-outgoing">
+                                            <div class="msg-avatar hr">HR</div>
+                                            <div class="msg-content-wrap">
+                                                <div class="msg-meta-row">
+                                                    <span>You (HR)</span>
+                                                    <span>•</span>
+                                                    <span>{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                                </div>
+                                                <div class="msg-bubble hr-bubble">
+                                                    <div>{{ item.content }}</div>
+                                                    {% set att = item.metadata.attachment if (item.metadata and item.metadata.attachment) else item.attachment %}
+                                                    {% if att %}
+                                                        <div class="msg-attachment-card">
+                                                            <div class="attachment-card-icon">
+                                                                {% if att.file_type in ['pdf'] %}📄
+                                                                {% elif att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}🖼️
+                                                                {% elif att.file_type in ['doc', 'docx'] %}📝
+                                                                {% elif att.file_type in ['zip', 'rar', 'tar'] %}📦
+                                                                {% else %}📎{% endif %}
+                                                            </div>
+                                                            <div class="attachment-card-details">
+                                                                <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" class="attachment-name" title="Download {{ att.filename }}">
+                                                                    {{ att.filename }}
+                                                                </a>
+                                                                <span class="attachment-meta-info">{{ att.file_size }} • {{ att.file_type|upper }}</span>
+                                                            </div>
+                                                            <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" class="attachment-download-icon" title="Download">
+                                                                ⬇️
+                                                            </a>
+                                                        </div>
+                                                        {% if att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}
+                                                            <div style="margin-top: 0.5rem;">
+                                                                <a href="{{ att.file_url }}" target="_blank">
+                                                                    <img src="{{ att.file_url }}" alt="{{ att.filename }}" style="max-width: 260px; max-height: 200px; border-radius: 8px; display: block; border: 1px solid rgba(255,255,255,0.15);">
+                                                                </a>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    {% else %}
+                                        <!-- Incoming Candidate Message -->
+                                        <div class="msg-row candidate-incoming">
+                                            <div class="msg-avatar cand">
+                                                {{ item.sender_name[:2]|upper if item.sender_name else 'CA' }}
+                                            </div>
+                                            <div class="msg-content-wrap">
+                                                <div class="msg-meta-row">
+                                                    <span>{{ item.sender_name }}</span>
+                                                    <span>•</span>
+                                                    <span>{{ item.timestamp[11:16] if item.timestamp else '' }}</span>
+                                                </div>
+                                                <div class="msg-bubble candidate-bubble">
+                                                    <div>{{ item.content }}</div>
+                                                    {% set att = item.metadata.attachment if (item.metadata and item.metadata.attachment) else item.attachment %}
+                                                    {% if att %}
+                                                        <div class="msg-attachment-card">
+                                                            <div class="attachment-card-icon">
+                                                                {% if att.file_type in ['pdf'] %}📄
+                                                                {% elif att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}🖼️
+                                                                {% elif att.file_type in ['doc', 'docx'] %}📝
+                                                                {% elif att.file_type in ['zip', 'rar', 'tar'] %}📦
+                                                                {% else %}📎{% endif %}
+                                                            </div>
+                                                            <div class="attachment-card-details">
+                                                                <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" class="attachment-name" title="Download {{ att.filename }}">
+                                                                    {{ att.filename }}
+                                                                </a>
+                                                                <span class="attachment-meta-info">{{ att.file_size }} • {{ att.file_type|upper }}</span>
+                                                            </div>
+                                                            <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" class="attachment-download-icon" title="Download">
+                                                                ⬇️
+                                                            </a>
+                                                        </div>
+                                                        {% if att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}
+                                                            <div style="margin-top: 0.5rem;">
+                                                                <a href="{{ att.file_url }}" target="_blank">
+                                                                    <img src="{{ att.file_url }}" alt="{{ att.filename }}" style="max-width: 260px; max-height: 200px; border-radius: 8px; display: block; border: 1px solid rgba(255,255,255,0.15);">
+                                                                </a>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- 5. Message Composer Bar -->
+                        <div class="chat-composer-bar">
+                            <form action="/candidate/{{ selected_candidate.id }}/message" method="POST" id="msgForm" enctype="multipart/form-data">
+                                <div class="composer-toolbar">
+                                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                        <label for="sendToSelect" style="font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem;">
+                                            <span>Send to:</span>
+                                        </label>
+                                        <select name="send_to" id="sendToSelect" onchange="handleSendToChange(this)" class="send-target-select">
+                                            <option value="candidate" selected>📤 Candidate (In-App & Email)</option>
+                                            <option value="admin">🔒 Within Admin Only (Private Note)</option>
+                                        </select>
+                                        <input type="hidden" name="is_internal" id="isInternalHidden" value="0">
+
+                                        <!-- Attach File Button -->
+                                        <button type="button" onclick="document.getElementById('chatFileInput').click()" class="btn-action-sm btn-action-secondary" title="Attach Document, Resume, Offer, or Image" style="font-size: 0.76rem; padding: 0.3rem 0.75rem; border-color: rgba(99, 102, 241, 0.4); color: #c4b5fd;">
+                                            <span>📎</span> Attach File
+                                        </button>
+                                        <input type="file" name="attachment" id="chatFileInput" onchange="handleFileSelect(this)" style="display: none;" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,.gif,.zip,.xlsx,.csv">
+
+                                        <!-- Schedule Round Button -->
+                                        <button type="button" onclick="openScheduleRoundModal()" class="btn-action-sm btn-action-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.75rem; border-color: rgba(139, 92, 246, 0.4); color: #c4b5fd;">
+                                            <span>📅</span> Schedule Date & Time
+                                        </button>
+                                    </div>
+                                    <div id="audienceHint" style="font-size: 0.75rem; color: #a5b4fc; font-weight: 500;">
+                                        Candidate will receive in-app update & email
+                                    </div>
+                                </div>
+
+                                <!-- Attachment Preview Bar (shown when file selected) -->
+                                <div id="attachmentPreviewBox" class="attachment-preview-box" style="display: none;">
+                                    <div style="display: flex; align-items: center; gap: 0.55rem; overflow: hidden;">
+                                        <span id="previewFileIcon" style="font-size: 1.25rem;">📎</span>
+                                        <span id="previewFileName" style="font-size: 0.82rem; font-weight: 600; color: #f8fafc; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"></span>
+                                        <span id="previewFileSize" style="font-size: 0.74rem; color: #94a3b8;"></span>
+                                    </div>
+                                    <button type="button" onclick="clearSelectedAttachment()" class="attachment-clear-btn" title="Remove attachment">&times;</button>
+                                </div>
+
+                                <div class="composer-input-row">
+                                    <textarea name="content" id="composerInput" class="composer-textarea" rows="2" placeholder="Send an update, interview instructions, or private team note... (Press Ctrl+Enter to send)"></textarea>
+                                    <button type="submit" class="btn-send" id="btnSend">
+                                        <span>Send</span> <span>📤</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Schedule Interview Round (Round 1, 2, 3, etc.) -->
+    {% if selected_candidate %}
+    <div id="scheduleRoundModal" class="hub-modal">
+        <div class="hub-modal-content">
+            <div class="hub-modal-header">
+                <h3>📅 Schedule Interview Round</h3>
+                <button type="button" onclick="closeScheduleRoundModal()" style="background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <form action="/candidate/{{ selected_candidate.id }}/schedule_round" method="POST">
+                <div class="form-group-modal">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label style="margin-bottom: 0; font-weight: 600;">Interview Round / Meeting Title:</label>
+                        <span style="font-size: 0.72rem; color: var(--text-muted);">Type custom title or click a preset below</span>
+                    </div>
+                    <input type="text" 
+                           name="round_title" 
+                           id="roundTitleInput" 
+                           list="roundTitleSuggestions" 
+                           placeholder="e.g. Round 2 - Deep Dive & System Design" 
+                           value="Round 2 - Deep Dive & System Design"
+                           required 
+                           autocomplete="off">
+                    <datalist id="roundTitleSuggestions">
+                        <option value="Round 1 - Technical Screen">
+                        <option value="Round 2 - Deep Dive & System Design">
+                        <option value="Round 3 - Leadership & Culture Fit">
+                        <option value="Round 4 - System Architecture Review">
+                        <option value="Final Executive Round">
+                        <option value="HR & Culture Alignment">
+                        <option value="Onboarding Briefing">
+                    </datalist>
+
+                    <!-- Quick Preset Badges -->
+                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                        <button type="button" class="preset-chip" onclick="setRoundPreset('Round 1 - Technical Screen', 'Please prepare for algorithmic problem solving, code reviews, and live coding.')">
+                            💻 Tech Screen
+                        </button>
+                        <button type="button" class="preset-chip" onclick="setRoundPreset('Round 2 - Deep Dive & System Design', 'Prepare to design a high-throughput microservices architecture.')">
+                            🏗️ Deep Dive & System Design
+                        </button>
+                        <button type="button" class="preset-chip" onclick="setRoundPreset('Round 3 - Leadership & Culture Fit', 'Discussion on team collaboration, problem solving philosophy, and culture fit.')">
+                            🤝 Leadership & Fit
+                        </button>
+                        <button type="button" class="preset-chip" onclick="setRoundPreset('Final Executive Round', 'Meet with executive leadership to discuss strategic alignment, impact, and offer expectations.')">
+                            👔 Executive Round
+                        </button>
+                        <button type="button" class="preset-chip" onclick="setRoundPreset('Onboarding Briefing', 'Walkthrough of company equipment setup, team introductions, and first-week agenda.')">
+                            🎉 Onboarding
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-group-modal">
+                        <label>Date:</label>
+                        <input type="date" name="date" required id="roundDateInput">
+                        <div style="display: flex; gap: 0.35rem; margin-top: 0.35rem;">
+                            <button type="button" class="quick-time-chip" onclick="setQuickDate(1)">Tomorrow</button>
+                            <button type="button" class="quick-time-chip" onclick="setQuickDate(2)">+2 Days</button>
+                            <button type="button" class="quick-time-chip" onclick="setQuickDate(7)">+1 Week</button>
+                        </div>
+                    </div>
+                    <div class="form-group-modal">
+                        <label>Time:</label>
+                        <input type="time" name="time" id="roundTimeInput" required value="10:00">
+                        <div style="display: flex; gap: 0.35rem; margin-top: 0.35rem;">
+                            <button type="button" class="quick-time-chip" onclick="setQuickTime('10:00')">10:00 AM</button>
+                            <button type="button" class="quick-time-chip" onclick="setQuickTime('14:00')">02:00 PM</button>
+                            <button type="button" class="quick-time-chip" onclick="setQuickTime('16:00')">04:00 PM</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group-modal">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <label style="margin-bottom: 0; font-weight: 600;">Preparation Notes & Instructions for Candidate:</label>
+                        <span style="font-size: 0.72rem; color: #a5b4fc;">Sent in candidate invite</span>
+                    </div>
+                    <textarea name="hr_note" id="roundNoteInput" rows="3" placeholder="e.g. Prepare to design a high-throughput microservices architecture. Review caching patterns and message queues."></textarea>
+                    <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                        💡 You can write whatever instructions or agenda you want here. The candidate will see this in their portal and invitation email.
+                    </div>
+                </div>
+
+                <div class="modal-btn-row">
+                    <button type="button" onclick="closeScheduleRoundModal()" class="btn-action-sm btn-action-secondary">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-action-sm btn-action-primary">
+                        Send Invitation & Email
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Counter Propose Reschedule Slot -->
+    <div id="counterModal" class="hub-modal">
+        <div class="hub-modal-content">
+            <div class="hub-modal-header">
+                <h3>🔄 Propose Counter Interview Slot</h3>
+                <button type="button" onclick="closeCounterModal()" style="background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <form action="/candidate/{{ selected_candidate.id }}/resolve_reschedule" method="POST">
+                <input type="hidden" name="decision" value="counter">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-group-modal">
+                        <label>New Date:</label>
+                        <input type="date" name="new_date" required id="counterDateInput">
+                    </div>
+                    <div class="form-group-modal">
+                        <label>New Time:</label>
+                        <input type="time" name="new_time" required id="counterTimeInput" value="11:00">
+                    </div>
+                </div>
+
+                <div class="form-group-modal">
+                    <label>Note explaining time preference:</label>
+                    <textarea name="hr_note" rows="3" placeholder="e.g. Interview panel is unavailable at requested slot; proposing this alternate time."></textarea>
+                </div>
+
+                <div class="modal-btn-row">
+                    <button type="button" onclick="closeCounterModal()" class="btn-action-sm btn-action-secondary">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-action-sm btn-action-primary">
+                        Propose Alternate Time
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        // Auto-scroll chat feed to bottom
+        const feed = document.getElementById('chatFeed');
+        if (feed) {
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        // Toggle styling when audience select changes (Candidate vs Admin Only)
+        function handleSendToChange(selectElem) {
+            const textarea = document.getElementById('composerInput');
+            const btn = document.getElementById('btnSend');
+            const hint = document.getElementById('audienceHint');
+            const isInternalHidden = document.getElementById('isInternalHidden');
+
+            if (selectElem.value === 'admin') {
+                if (isInternalHidden) isInternalHidden.value = '1';
+                textarea.style.borderColor = '#f59e0b';
+                textarea.placeholder = '🔒 Enter internal note visible within admin only (Candidate will NOT see this)...';
+                btn.style.background = '#f59e0b';
+                btn.style.color = '#1e1b4b';
+                btn.innerHTML = '<span>Save Note</span> <span>🔒</span>';
+                if (hint) {
+                    hint.style.color = '#f59e0b';
+                    hint.textContent = '🔒 Within Admin Only: Private internal note (Candidate will NOT be notified)';
+                }
+            } else {
+                if (isInternalHidden) isInternalHidden.value = '0';
+                textarea.style.borderColor = 'var(--border-color)';
+                textarea.placeholder = 'Send a message or update to candidate... (Press Ctrl+Enter to send)';
+                btn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+                btn.style.color = 'white';
+                btn.innerHTML = '<span>Send</span> <span>📤</span>';
+                if (hint) {
+                    hint.style.color = '#a5b4fc';
+                    hint.textContent = '📤 Candidate will receive in-app update & email';
+                }
+            }
+        }
+
+        // File Attachment Handlers
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const box = document.getElementById('attachmentPreviewBox');
+                const nameSpan = document.getElementById('previewFileName');
+                const sizeSpan = document.getElementById('previewFileSize');
+                const iconSpan = document.getElementById('previewFileIcon');
+
+                if (nameSpan) nameSpan.textContent = file.name;
+
+                // Format size
+                let sizeStr = '';
+                if (file.size < 1024) sizeStr = file.size + ' B';
+                else if (file.size < 1024 * 1024) sizeStr = (file.size / 1024).toFixed(1) + ' KB';
+                else sizeStr = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                if (sizeSpan) sizeSpan.textContent = '(' + sizeStr + ')';
+
+                // File icon selection
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (['pdf'].includes(ext)) {
+                    if (iconSpan) iconSpan.textContent = '📄';
+                } else if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) {
+                    if (iconSpan) iconSpan.textContent = '🖼️';
+                } else if (['doc', 'docx'].includes(ext)) {
+                    if (iconSpan) iconSpan.textContent = '📝';
+                } else if (['zip', 'rar', 'tar', 'gz'].includes(ext)) {
+                    if (iconSpan) iconSpan.textContent = '📦';
+                } else {
+                    if (iconSpan) iconSpan.textContent = '📎';
+                }
+
+                if (box) box.style.display = 'flex';
+            }
+        }
+
+        function clearSelectedAttachment() {
+            const input = document.getElementById('chatFileInput');
+            const box = document.getElementById('attachmentPreviewBox');
+            if (input) input.value = '';
+            if (box) box.style.display = 'none';
+        }
+
+        // Form submit validation: ensure either message or file is attached
+        const msgForm = document.getElementById('msgForm');
+        if (msgForm) {
+            msgForm.addEventListener('submit', function (e) {
+                const composer = document.getElementById('composerInput');
+                const fileInput = document.getElementById('chatFileInput');
+                const hasText = composer && composer.value && composer.value.trim().length > 0;
+                const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+                if (!hasText && !hasFile) {
+                    e.preventDefault();
+                    alert('Please enter a message or attach a file before sending.');
+                    if (composer) composer.focus();
+                }
+            });
+        }
+
+        // Keyboard shortcut: Ctrl+Enter or Cmd+Enter to send message
+        const composer = document.getElementById('composerInput');
+        if (composer) {
+            composer.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (msgForm) {
+                        msgForm.requestSubmit ? msgForm.requestSubmit() : msgForm.submit();
+                    }
+                }
+            });
+        }
+
+        // Preset & Quick Select Helpers for Scheduling
+        function setRoundPreset(title, note) {
+            const titleInput = document.getElementById('roundTitleInput');
+            const noteInput = document.getElementById('roundNoteInput');
+            if (titleInput) titleInput.value = title;
+            if (noteInput) {
+                noteInput.value = note;
+                noteInput.focus();
+            }
+        }
+
+        function setQuickDate(daysAhead) {
+            const dateInput = document.getElementById('roundDateInput');
+            if (dateInput) {
+                const target = new Date();
+                target.setDate(target.getDate() + daysAhead);
+                dateInput.value = target.toISOString().split('T')[0];
+            }
+        }
+
+        function setQuickTime(val) {
+            const timeInput = document.getElementById('roundTimeInput');
+            if (timeInput) timeInput.value = val;
+        }
+
+        // Modal Controls
+        function openScheduleRoundModal(title, date, time, note) {
+            const modal = document.getElementById('scheduleRoundModal');
+            if (!modal) return;
+
+            const titleInput = document.getElementById('roundTitleInput');
+            const dateInput = document.getElementById('roundDateInput');
+            const timeInput = document.getElementById('roundTimeInput');
+            const noteInput = document.getElementById('roundNoteInput');
+            const composer = document.getElementById('composerInput');
+
+            // 1. Round / Meeting Title
+            if (titleInput) {
+                if (title && title.trim()) {
+                    titleInput.value = title.trim();
+                } else if (!titleInput.value) {
+                    titleInput.value = 'Round 2 - Deep Dive & System Design';
+                }
+            }
+
+            // 2. Date Picker
+            if (dateInput) {
+                if (date && date.trim()) {
+                    dateInput.value = date.trim();
+                } else if (!dateInput.value) {
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    dateInput.value = tomorrow.toISOString().split('T')[0];
+                }
+                dateInput.min = new Date().toISOString().split('T')[0];
+            }
+
+            // 3. Time Picker
+            if (timeInput) {
+                if (time && time.trim()) {
+                    timeInput.value = time.trim();
+                } else if (!timeInput.value) {
+                    timeInput.value = '10:00';
+                }
+            }
+
+            // 4. Preparation Notes / Instructions
+            if (noteInput) {
+                if (note !== undefined && note !== null && note.trim() !== '') {
+                    noteInput.value = note.trim();
+                } else if (composer && composer.value && composer.value.trim().length > 0 && !noteInput.value) {
+                    // Automatically adopt notes if HR drafted them in the message composer box
+                    noteInput.value = composer.value.trim();
+                } else if (!noteInput.value) {
+                    noteInput.value = 'Prepare to design a high-throughput microservices architecture.';
+                }
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeScheduleRoundModal() {
+            const modal = document.getElementById('scheduleRoundModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function openCounterModal(propDate, propTime) {
+            const modal = document.getElementById('counterModal');
+            if (modal) {
+                if (propDate) document.getElementById('counterDateInput').value = propDate;
+                if (propTime) document.getElementById('counterTimeInput').value = propTime;
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeCounterModal() {
+            const modal = document.getElementById('counterModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Notification center handling
+        function toggleNotifDropdown() {
+            const dd = document.getElementById('notifDropdown');
+            if (dd.style.display === 'block') {
+                dd.style.display = 'none';
+            } else {
+                dd.style.display = 'block';
+                loadNotifications();
+            }
+        }
+
+        function loadNotifications() {
+            fetch('/api/notifications')
+                .then(r => r.json())
+                .then(data => {
+                    const list = document.getElementById('notifList');
+                    const badge = document.getElementById('notifBadge');
+                    
+                    if (data.unread_count > 0) {
+                        badge.style.display = 'flex';
+                        badge.textContent = data.unread_count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
+                    if (!data.notifications || data.notifications.length === 0) {
+                        list.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No notifications yet</div>';
+                        return;
+                    }
+
+                    list.innerHTML = data.notifications.map(n => `
+                        <div style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); background: ${n.read ? 'transparent' : 'rgba(99,102,241,0.08)'}; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="font-size: 0.85rem; color: ${n.read ? 'var(--text-secondary)' : 'var(--text-primary)'};">${n.title}</strong>
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">${n.created_at ? n.created_at.substring(11, 16) : ''}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">${n.message}</div>
+                            ${n.link ? `<a href="${n.link}" style="font-size: 0.75rem; color: #8b5cf6; text-decoration: none; font-weight: 600; margin-top: 2px;">View in Candidate Hub &rarr;</a>` : ''}
+                        </div>
+                    `).join('');
+                })
+                .catch(err => console.error("Error loading notifications:", err));
+        }
+
+        function markAllNotificationsRead() {
+            fetch('/api/notifications/mark_all_read', { method: 'POST' })
+                .then(() => loadNotifications());
+        }
+
+        loadNotifications();
+        setInterval(loadNotifications, 15000);
+
+        window.onclick = function (event) {
+            const sched = document.getElementById('scheduleRoundModal');
+            const counter = document.getElementById('counterModal');
+            const notifDropdown = document.getElementById('notifDropdown');
+            const notifBtn = document.getElementById('notifBellBtn');
+
+            if (event.target == sched) closeScheduleRoundModal();
+            if (event.target == counter) closeCounterModal();
+            if (notifDropdown && notifBtn && !notifDropdown.contains(event.target) && !notifBtn.contains(event.target)) {
+                notifDropdown.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>

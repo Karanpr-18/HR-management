@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Current Employees & Operations | TalentAI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-dashboard.css') }}">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(148, 163, 184, 0.12);
+            --accent-primary: #6366f1;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        .emp-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .emp-stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .emp-stat-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(99, 102, 241, 0.35);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .emp-stat-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .emp-stat-icon.purple { background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.3)); color: #a855f7; border: 1px solid rgba(139,92,246,0.3); }
+        .emp-stat-icon.green  { background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.3)); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+        .emp-stat-icon.amber  { background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(217,119,6,0.3)); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+        .emp-stat-icon.rose   { background: linear-gradient(135deg, rgba(244,63,94,0.2), rgba(225,29,72,0.3)); color: #f43f5e; border: 1px solid rgba(244,63,94,0.3); }
+        .emp-stat-icon.blue   { background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(37,99,235,0.3)); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+
+        .emp-stat-info h3 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0;
+            line-height: 1.1;
+        }
+
+        .emp-stat-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0.25rem 0 0 0;
+        }
+
+        /* Tabs styling */
+        .tabs-header {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            color: #818cf8;
+            border-bottom-color: #818cf8;
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .tab-badge {
+            background: #f43f5e;
+            color: white;
+            font-size: 0.72rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Search & Filter Bar */
+        .toolbar-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 240px;
+            max-width: 420px;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.65rem 1rem 0.65rem 2.4rem;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .search-box svg {
+            position: absolute;
+            left: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Table Design */
+        .custom-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            color: var(--text-main);
+        }
+
+        .custom-table th {
+            text-align: left;
+            padding: 0.85rem 1rem;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        .custom-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+            vertical-align: middle;
+            font-size: 0.92rem;
+        }
+
+        .custom-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* Employee Avatar & Badges */
+        .emp-user-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .emp-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .emp-meta .name {
+            font-weight: 600;
+            color: white;
+            margin: 0;
+        }
+
+        .emp-meta .emp-id {
+            font-size: 0.78rem;
+            color: #818cf8;
+            font-family: monospace;
+            background: rgba(99, 102, 241, 0.15);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            margin-right: 0.3rem;
+        }
+
+        .dept-tag {
+            display: inline-block;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            background: rgba(148, 163, 184, 0.1);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.25rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .status-pill.present {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-pill.leave {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-pill.pending {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        .status-pill.neutral {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .dot-indicator {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Buttons & Actions */
+        .btn-action-group {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-icon-action {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            padding: 0.45rem 0.65rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-icon-action:hover {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-icon-action.danger:hover {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border-color: rgba(244, 63, 94, 0.3);
+        }
+
+        /* Modals */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal-container {
+            background: #1e293b;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 20px;
+            max-width: 580px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalPop {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.65rem 0.85rem;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-primary);
+        }
+
+        /* Calendar Grid inside Modal */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin-top: 1rem;
+        }
+
+        .calendar-header-day {
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            padding: 0.4rem 0;
+        }
+
+        .calendar-cell {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 8px;
+            min-height: 60px;
+            padding: 0.4rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            transition: all 0.2s;
+        }
+
+        .calendar-cell.empty {
+            background: transparent;
+            border-color: transparent;
+        }
+
+        .calendar-cell.present {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .calendar-cell.leave {
+            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .calendar-cell.today {
+            box-shadow: 0 0 0 2px var(--accent-primary);
+        }
+
+        .cal-num {
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .cal-tag {
+            font-size: 0.68rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .cal-tag.green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .cal-tag.amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .cal-tag.purple { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+
+        /* Leave review cards */
+        .leave-review-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .leave-review-card.pending {
+            border-left: 4px solid var(--accent-amber);
+            background: linear-gradient(90deg, rgba(245, 158, 11, 0.05), transparent);
+        }
+
+        .leave-actions-form {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-approve {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.55rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-approve:hover {
+            background: #059669;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-reject {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 0.55rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-reject:hover {
+            background: #f43f5e;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <a href="/" class="sidebar-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <rect width="32" height="32" rx="8" fill="url(#logo-gradient)" />
+                    <path d="M16 8L20 12L16 16L12 12L16 8Z" fill="white" opacity="0.9" />
+                    <path d="M16 16L20 20L16 24L12 20L16 16Z" fill="white" opacity="0.6" />
+                    <defs>
+                        <linearGradient id="logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                            <stop offset="0%" stop-color="#6366f1" />
+                            <stop offset="100%" stop-color="#a855f7" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <span class="brand-name">TalentAI</span>
+            </a>
+
+            <ul class="sidebar-nav">
+                <li class="sidebar-nav-item">
+                    <a href="/overview" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        Overview
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/dashboard" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/candidate" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Candidates
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employees" class="sidebar-nav-link active">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Current Employees
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employer" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                        Job Context
+                    </a>
+                </li>
+            </ul>
+
+            <div style="margin-top: auto; padding: 1rem 0;">
+                <a href="/employee_login" target="_blank" class="btn-icon-action" style="width: 100%; justify-content: center; background: rgba(99,102,241,0.1); color: #818cf8;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    Open Employee Portal
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="top-header">
+                <div class="greeting-header">
+                    <h1 class="greeting-text">Current Employees & Operations 💼</h1>
+                    <p class="greeting-sub">Manage your active workforce, attendance logs, leave approvals, and compensation</p>
+                </div>
+                <div class="header-actions" style="display: flex; gap: 0.75rem;">
+                    {% if eligible_candidates %}
+                    <button onclick="openShiftModal()" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 15px rgba(16,185,129,0.3);">
+                        ⚡ Shift Candidate to Employee ({{ eligible_candidates|length }})
+                    </button>
+                    {% endif %}
+                    <button onclick="openAddModal()" class="btn-primary">
+                        ➕ Add New Employee
+                    </button>
+                </div>
+            </div>
+
+            <!-- Flash alerts -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div style="margin-bottom: 1.5rem;">
+                        {% for category, message in messages %}
+                            <div style="padding: 0.85rem 1.25rem; border-radius: 12px; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;
+                                {% if category == 'success' %}background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3);
+                                {% elif category == 'error' %}background: rgba(244,63,94,0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.3);
+                                {% else %}background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3);{% endif %}">
+                                <span>{{ message }}</span>
+                                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 1.2rem;">&times;</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Top Metric Cards -->
+            <div class="emp-stats-grid">
+                <div class="emp-stat-card">
+                    <div class="emp-stat-icon purple">👥</div>
+                    <div class="emp-stat-info">
+                        <h3>{{ total_employees }}</h3>
+                        <p>Total Active Employees</p>
+                    </div>
+                </div>
+                <div class="emp-stat-card">
+                    <div class="emp-stat-icon green">⏱️</div>
+                    <div class="emp-stat-info">
+                        <h3>{{ clocked_in_today }}</h3>
+                        <p>Clocked In Today</p>
+                    </div>
+                </div>
+                <div class="emp-stat-card">
+                    <div class="emp-stat-icon amber">🏖️</div>
+                    <div class="emp-stat-info">
+                        <h3>{{ on_leave_today }}</h3>
+                        <p>On Leave Today</p>
+                    </div>
+                </div>
+                <div class="emp-stat-card">
+                    <div class="emp-stat-icon rose">📬</div>
+                    <div class="emp-stat-info">
+                        <h3>{{ pending_leaves }}</h3>
+                        <p>Pending Leave Requests</p>
+                    </div>
+                </div>
+                <div class="emp-stat-card">
+                    <div class="emp-stat-icon blue">💰</div>
+                    <div class="emp-stat-info">
+                        <h3>${{ "{:,.0f}".format(total_payroll) }}</h3>
+                        <p>Monthly Net Payroll</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Switcher Navigation -->
+            <div class="tabs-header">
+                <button class="tab-btn {% if active_tab == 'directory' %}active{% endif %}" onclick="switchTab('directory')">
+                    👥 Employee Directory ({{ total_employees }})
+                </button>
+                <button class="tab-btn {% if active_tab == 'attendance' %}active{% endif %}" onclick="switchTab('attendance')">
+                    ⏱️ Attendance & Live Punch Log
+                </button>
+                <button class="tab-btn {% if active_tab == 'leaves' %}active{% endif %}" onclick="switchTab('leaves')">
+                    📝 Leave Requests Review
+                    {% if pending_leaves > 0 %}<span class="tab-badge">{{ pending_leaves }} New</span>{% endif %}
+                </button>
+                <button class="tab-btn {% if active_tab == 'payroll' %}active{% endif %}" onclick="switchTab('payroll')">
+                    💳 Payroll & Compensation
+                </button>
+            </div>
+
+            <!-- TAB 1: EMPLOYEE DIRECTORY -->
+            <div id="tab-directory" class="tab-content-panel" style="display: {% if active_tab == 'directory' %}block{% else %}none{% endif %};">
+                <div class="glass-panel">
+                    <div class="toolbar-bar">
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" id="empSearchInput" placeholder="Search employee by name, ID, or role..." onkeyup="filterEmployees()">
+                        </div>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <select id="deptFilterSelect" class="form-control" style="width: 190px;" onchange="filterEmployees()">
+                                <option value="">All Departments</option>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Machine Learning">Machine Learning</option>
+                                <option value="Product & Design">Product & Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Sales">Sales</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Human Resources">Human Resources</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="custom-table" id="employeesTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Access Role &amp; Reporting</th>
+                                    <th>Department &amp; Title</th>
+                                    <th>Leave Balance (Yr)</th>
+                                    <th>Today's Status</th>
+                                    <th>Net Salary</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for emp in employees %}
+                                {% set att = att_by_emp.get(emp.id) %}
+                                {% set lead_obj = emp_map.get(emp.team_lead_id) if emp.team_lead_id else None %}
+                                {% set lbal = emp.leave_balance or {} %}
+                                {% set lquota = emp.leave_quota or {} %}
+                                <tr class="emp-row" data-name="{{ emp.name|lower }}" data-id="{{ emp.id|lower }}" data-dept="{{ emp.department|lower }}" data-role="{{ emp.role|lower }}">
+                                    <td>
+                                        <div class="emp-user-cell">
+                                            <div class="emp-avatar">
+                                                {{ emp.name[:1]|upper }}{% if emp.name.split()|length > 1 %}{{ emp.name.split()[1][:1]|upper }}{% endif %}
+                                            </div>
+                                            <div class="emp-meta">
+                                                <div class="name">{{ emp.name }}</div>
+                                                <div><span class="emp-id">{{ emp.id }}</span> <span style="font-size: 0.75rem; color: #94a3b8;">{{ emp.email }}</span></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if emp.access_role == 'team_lead' %}
+                                            <span class="status-pill present" style="font-size: 0.72rem;">Team Lead</span>
+                                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem;">Own leave → HR Admin</div>
+                                        {% else %}
+                                            <span class="status-pill neutral" style="font-size: 0.72rem;">Employee</span>
+                                            <div style="font-size: 0.75rem; margin-top: 0.25rem; color: {% if lead_obj %}#cbd5e1{% else %}#fb7185{% endif %};">
+                                                Lead: {{ lead_obj.name if lead_obj else 'Unassigned ⚠️' }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 600; color: #f1f5f9;">{{ emp.role }}</div>
+                                        <span class="dept-tag">{{ emp.department }}</span>
+                                    </td>
+                                    <td>
+                                        <div style="font-size: 0.82rem; color: #fbbf24; font-weight: 600;">
+                                            Casual: {{ lbal.get('casual', 12) }} / {{ lquota.get('casual', casual_cap) }}
+                                        </div>
+                                        <div style="font-size: 0.82rem; color: #a5b4fc; font-weight: 600;">
+                                            Yearly: {{ lbal.get('yearly', 15) }} / {{ lquota.get('yearly', default_yearly_quota) }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if att and att.status == 'On Leave' %}
+                                            <span class="status-pill leave"><span class="dot-indicator"></span>On Leave</span>
+                                        {% elif att and att.clock_in and not att.clock_out %}
+                                            <span class="status-pill present"><span class="dot-indicator"></span>Working (In {{ att.clock_in }})</span>
+                                        {% elif att and att.clock_out %}
+                                            <span class="status-pill neutral"><span class="dot-indicator"></span>Shift Done ({{ att.total_hours }}h)</span>
+                                        {% else %}
+                                            <span class="status-pill neutral"><span class="dot-indicator"></span>Not Clocked In</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div style="font-weight: 700; color: #34d399;">${{ "{:,.0f}".format(emp.salary.net if emp.salary else 0) }}/mo</div>
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">CTC: ${{ "{:,.0f}".format(((emp.salary.net * 12) if emp.salary else 0)) }}</span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <div class="btn-action-group" style="justify-content: flex-end;">
+                                            <button onclick="openCalendarModal('{{ emp.id }}', '{{ emp.name|e }}')" class="btn-icon-action" title="View Attendance Calendar">
+                                                📅 Calendar
+                                            </button>
+                                            <button onclick="openEditModal(this)"
+                                                data-id="{{ emp.id }}"
+                                                data-name="{{ emp.name }}"
+                                                data-role="{{ emp.role }}"
+                                                data-dept="{{ emp.department }}"
+                                                data-base="{{ emp.salary.base if emp.salary else 80000 }}"
+                                                data-allowances="{{ emp.salary.allowances if emp.salary else 12000 }}"
+                                                data-deductions="{{ emp.salary.deductions if emp.salary else 4000 }}"
+                                                data-status="{{ emp.status }}"
+                                                data-access-role="{{ emp.access_role or 'employee' }}"
+                                                data-team-lead-id="{{ emp.team_lead_id or '' }}"
+                                                data-casual-quota="{{ lquota.get('casual', casual_cap) }}"
+                                                data-yearly-quota="{{ lquota.get('yearly', default_yearly_quota) }}"
+                                                class="btn-icon-action" title="Edit Employee, Role &amp; Compensation">
+                                                ✏️ Edit
+                                            </button>
+                                            <form action="/employee/{{ emp.id }}/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to remove {{ emp.name|e }} from the directory?');">
+                                                <button type="submit" class="btn-icon-action danger" title="Remove Employee">
+                                                    🗑️
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                                        No employees found. Shift a candidate or add your first employee above!
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: ATTENDANCE & LIVE PUNCH LOG -->
+            <div id="tab-attendance" class="tab-content-panel" style="display: {% if active_tab == 'attendance' %}block{% else %}none{% endif %};">
+                <div class="glass-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h3 style="margin: 0; color: white; font-size: 1.25rem;">Today's Live Punch & Attendance Register ⏱️</h3>
+                            <p style="margin: 0.3rem 0 0 0; color: var(--text-muted); font-size: 0.88rem;">Real-time clock-in/out stamps and logged shift durations</p>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Clock In</th>
+                                    <th>Clock Out</th>
+                                    <th>Hours Logged</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Monthly Calendar</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for emp in employees %}
+                                {% set att = att_by_emp.get(emp.id) %}
+                                <tr>
+                                    <td>
+                                        <div class="emp-user-cell">
+                                            <div class="emp-avatar" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                                {{ emp.name[:1]|upper }}
+                                            </div>
+                                            <div>
+                                                <div style="font-weight: 600; color: white;">{{ emp.name }}</div>
+                                                <div style="font-size: 0.75rem; color: #818cf8;">{{ emp.id }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="dept-tag">{{ emp.department }}</span></td>
+                                    <td>
+                                        {% if att and att.clock_in %}
+                                            <span style="color: #34d399; font-weight: 600;">🟢 {{ att.clock_in }}</span>
+                                        {% else %}
+                                            <span style="color: var(--text-muted);">--:--</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if att and att.clock_out %}
+                                            <span style="color: #94a3b8; font-weight: 600;">🔴 {{ att.clock_out }}</span>
+                                        {% elif att and att.clock_in %}
+                                            <span style="color: #818cf8;">Working Now...</span>
+                                        {% else %}
+                                            <span style="color: var(--text-muted);">--:--</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if att and att.total_hours > 0 %}
+                                            <span style="font-weight: 700; color: #f1f5f9;">{{ att.total_hours }} hrs</span>
+                                        {% elif att and att.clock_in %}
+                                            <span style="color: #818cf8; font-style: italic;">In Progress</span>
+                                        {% else %}
+                                            <span style="color: var(--text-muted);">0.0 hrs</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if att and att.status == 'On Leave' %}
+                                            <span class="status-pill leave">On Leave</span>
+                                        {% elif att and att.clock_in and not att.clock_out %}
+                                            <span class="status-pill present">Clocked In</span>
+                                        {% elif att and att.clock_out %}
+                                            <span class="status-pill neutral">Completed</span>
+                                        {% else %}
+                                            <span class="status-pill neutral">Absent / Not In</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <button onclick="openCalendarModal('{{ emp.id }}', '{{ emp.name }}')" class="btn-icon-action">
+                                            📅 View Attendance Grid
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: LEAVE REQUESTS REVIEW -->
+            <div id="tab-leaves" class="tab-content-panel" style="display: {% if active_tab == 'leaves' %}block{% else %}none{% endif %};">
+                <!-- Queue 1: Pending HR Final Approval (Team-Lead Approved) -->
+                <div class="glass-panel" style="margin-bottom: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h3 style="margin: 0; color: white; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                                🔔 Pending HR Final Approval (Forwarded by Team Lead)
+                                <span class="tab-badge" style="background: var(--accent-amber);">{{ pending_hr_leaves|length }} Ready</span>
+                            </h3>
+                            <p style="margin: 0.3rem 0 0 0; color: var(--text-muted); font-size: 0.88rem;">
+                                Only requests approved by an employee's Team Lead (or Team Lead self-requests) appear here. HR can also convert Casual ↔ Yearly (Casual max 12/yr).
+                            </p>
+                        </div>
+                    </div>
+
+                    {% for req in pending_hr_leaves %}
+                    {% set req_emp = emp_map.get(req.employee_id) %}
+                    {% set req_bal = req_emp.leave_balance if req_emp and req_emp.leave_balance else {} %}
+                    <div class="leave-review-card pending">
+                        <div style="flex: 1; min-width: 280px;">
+                            <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.45rem; flex-wrap: wrap;">
+                                <span style="font-weight: 700; color: white; font-size: 1.05rem;">{{ req.employee_name }}</span>
+                                <span class="dept-tag">{{ req.department }}</span>
+                                <span class="status-pill leave">{{ req.leave_type }}</span>
+                                <span class="status-pill present" style="font-size: 0.72rem;">
+                                    ✓ Lead: {{ req.lead_reviewed_by or 'Team Lead' }}
+                                </span>
+                            </div>
+                            <div style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 0.4rem;">
+                                <strong>Period:</strong> <span style="color: #818cf8; font-weight: 600;">{{ req.start_date }}</span> to <span style="color: #818cf8; font-weight: 600;">{{ req.end_date }}</span>
+                                <span style="background: rgba(255,255,255,0.08); padding: 0.15rem 0.5rem; border-radius: 4px; margin-left: 0.5rem; font-size: 0.8rem; font-weight: 600;">{{ req.days }} Day(s)</span>
+                                <span style="margin-left: 0.5rem; font-size: 0.78rem; color: #94a3b8;">
+                                    (Approved Used: Casual {{ req_bal.get('casual_used', 0) }}/{{ req_bal.get('casual_quota', casual_cap) }} • Yearly Rem: {{ req_bal.get('yearly', default_yearly_quota) }})
+                                </span>
+                            </div>
+                            <div style="color: #94a3b8; font-size: 0.88rem; background: rgba(0,0,0,0.25); padding: 0.6rem 0.85rem; border-radius: 8px; border-left: 3px solid #818cf8;">
+                                <em>"{{ req.reason or 'No reason specified' }}"</em>
+                            </div>
+                            {% if req.lead_remarks %}
+                            <div style="font-size: 0.78rem; color: #34d399; margin-top: 0.4rem;">
+                                <strong>Team Lead Remarks:</strong> "{{ req.lead_remarks }}"
+                            </div>
+                            {% endif %}
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.4rem;">
+                                Submitted: {{ req.submitted_at[:16].replace('T', ' ') }}
+                                {% if req.lead_reviewed_at %} • Forwarded: {{ req.lead_reviewed_at[:16].replace('T', ' ') }}{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- HR Action Form -->
+                        <div style="min-width: 340px;">
+                            <form action="/hr/leave/{{ req.id }}/review" method="POST" class="leave-actions-form" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <select name="override_mode" class="form-control" style="flex: 1; font-size: 0.82rem; padding: 0.45rem 0.65rem;" onchange="toggleHrSplitInput(this, '{{ req.id }}')">
+                                        <option value="auto">Allocation: Auto ({{ req.casual_days }}C + {{ req.yearly_days }}Y)</option>
+                                        <option value="casual">Convert All → Casual ({{ req.days }}d)</option>
+                                        <option value="yearly">Convert All → Yearly ({{ req.days }}d)</option>
+                                        {% if req.days > 1 %}
+                                        <option value="split">Custom Split (Casual + Yearly)</option>
+                                        {% endif %}
+                                    </select>
+                                    <input type="number" name="override_casual_days" id="hrSplit_{{ req.id }}" min="0" max="{{ req.days }}" value="{{ req.casual_days }}" placeholder="Casual days" class="form-control" style="display: none; width: 115px; font-size: 0.82rem; padding: 0.45rem 0.65rem;">
+                                </div>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="text" name="remarks" placeholder="HR remarks (optional)" class="form-control" style="flex: 1; min-width: 150px; font-size: 0.85rem; padding: 0.5rem 0.75rem;">
+                                    <button type="submit" name="decision" value="approved" class="btn-approve">
+                                        ✓ Accept &amp; Approve
+                                    </button>
+                                    <button type="submit" name="decision" value="rejected" class="btn-reject">
+                                        ✕ Reject
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="text-align: center; padding: 2.25rem; color: var(--text-muted);">
+                        <div style="font-size: 2.25rem; margin-bottom: 0.5rem;">🎉</div>
+                        <div style="font-weight: 600; color: #cbd5e1;">No Team-Lead-approved requests awaiting HR action.</div>
+                        <div style="font-size: 0.85rem; margin-top: 0.25rem;">Employee leave requests appear here only after their Team Lead approves &amp; forwards them.</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Queue 2: Read-Only Monitor for Requests Still With Team Lead -->
+                {% if pending_lead_leaves %}
+                <div class="glass-panel" style="margin-bottom: 2rem; border-color: rgba(99,102,241,0.25);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <h4 style="margin: 0; color: #cbd5e1; font-size: 1.05rem;">
+                                ⏳ Awaiting Team Lead Approval ({{ pending_lead_leaves|length }}) — Read-Only Monitor
+                            </h4>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
+                                Direct Employee → HR approval is blocked by RBAC policy. HR actions unlock once the assigned Team Lead approves.
+                            </p>
+                        </div>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Assigned Team Lead</th>
+                                    <th>Auto Allocation</th>
+                                    <th>Dates</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_lead_leaves %}
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600; color: white;">{{ req.employee_name }}</div>
+                                        <div style="font-size: 0.75rem; color: #818cf8;">{{ req.employee_id }} • {{ req.department }}</div>
+                                    </td>
+                                    <td><span class="dept-tag">{{ req.assigned_team_lead_name or 'Assigned Lead' }}</span></td>
+                                    <td><span class="status-pill neutral">{{ req.leave_type }}</span></td>
+                                    <td>{{ req.start_date }} → {{ req.end_date }}</td>
+                                    <td><strong>{{ req.days }} day(s)</strong></td>
+                                    <td><span class="status-pill leave">With Team Lead</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Past Leave Requests History -->
+                <div class="glass-panel">
+                    <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1.1rem;">Past Leave Requests History &amp; HR Type Adjustments</h4>
+                    <div style="overflow-x: auto;">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Leave Allocation</th>
+                                    <th>Dates</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Lead / HR Remarks</th>
+                                    <th style="text-align: right;">HR Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in history_leaves %}
+                                {% set req_emp = emp_map.get(req.employee_id) %}
+                                {% set req_bal = req_emp.leave_balance if req_emp and req_emp.leave_balance else {} %}
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600; color: white;">{{ req.employee_name }}</div>
+                                        <div style="font-size: 0.75rem; color: #818cf8;">{{ req.employee_id }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="status-pill neutral">{{ req.leave_type }}</span>
+                                        {% if req.hr_type_override %}
+                                        <div style="font-size: 0.7rem; color: #c4b5fd; margin-top: 0.2rem;">Reclassified by HR</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ req.start_date }} → {{ req.end_date }}</td>
+                                    <td><strong>{{ req.days }} day(s)</strong></td>
+                                    <td>
+                                        {% if req.status == 'approved' %}
+                                            <span class="status-pill present">✓ Approved</span>
+                                        {% elif req.status == 'rejected_by_lead' %}
+                                            <span class="status-pill pending">✕ Rejected by Lead</span>
+                                        {% else %}
+                                            <span class="status-pill pending">✕ Rejected by HR</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="color: #94a3b8; font-size: 0.82rem; max-width: 240px;">
+                                        {% if req.lead_remarks %}<div>Lead: {{ req.lead_remarks }}</div>{% endif %}
+                                        {% if req.remarks %}<div>HR: {{ req.remarks }}</div>{% endif %}
+                                        {% if not req.lead_remarks and not req.remarks %}-{% endif %}
+                                    </td>
+                                    <td style="text-align: right;">
+                                        {% if req.status == 'approved' %}
+                                        <button type="button" class="btn-icon-action"
+                                            onclick="openConvertLeaveModal(this)"
+                                            data-leave-id="{{ req.id }}"
+                                            data-emp-name="{{ req.employee_name }}"
+                                            data-dates="{{ req.start_date }} to {{ req.end_date }}"
+                                            data-days="{{ req.days }}"
+                                            data-casual-days="{{ req.casual_days }}"
+                                            data-yearly-days="{{ req.yearly_days }}"
+                                            data-leave-type="{{ req.leave_type }}"
+                                            data-emp-casual-used="{{ req_bal.get('casual_used', 0) }}"
+                                            data-emp-casual-quota="{{ req_bal.get('casual_quota', casual_cap) }}"
+                                            data-emp-yearly-rem="{{ req_bal.get('yearly', default_yearly_quota) }}">
+                                            🔄 Convert Casual ↔ Yearly
+                                        </button>
+                                        {% else %}
+                                        <span style="color: #64748b; font-size: 0.78rem;">Closed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">No historical leave records yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: PAYROLL & COMPENSATION -->
+            <div id="tab-payroll" class="tab-content-panel" style="display: {% if active_tab == 'payroll' %}block{% else %}none{% endif %};">
+                <div class="glass-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h3 style="margin: 0; color: white; font-size: 1.25rem;">Workforce Payroll & Salary Breakdown 💳</h3>
+                            <p style="margin: 0.3rem 0 0 0; color: var(--text-muted); font-size: 0.88rem;">Monthly gross, allowances, deductions, and annual CTC disbursements</p>
+                        </div>
+                        <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 12px; padding: 0.75rem 1.25rem;">
+                            <span style="color: var(--text-muted); font-size: 0.82rem;">Total Monthly Disbursement:</span>
+                            <div style="font-size: 1.35rem; font-weight: 800; color: #34d399;">${{ "{:,.0f}".format(total_payroll) }}</div>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Base Salary</th>
+                                    <th>Allowances</th>
+                                    <th>Deductions</th>
+                                    <th>Monthly Net Pay</th>
+                                    <th>Annual Package (CTC)</th>
+                                    <th>Payment Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for emp in employees %}
+                                {% set sal = emp.salary or {} %}
+                                <tr>
+                                    <td>
+                                        <div style="font-weight: 600; color: white;">{{ emp.name }}</div>
+                                        <div style="font-size: 0.75rem; color: #818cf8;">{{ emp.id }} • {{ emp.role }}</div>
+                                    </td>
+                                    <td><span class="dept-tag">{{ emp.department }}</span></td>
+                                    <td>${{ "{:,.0f}".format(sal.base or 0) }}</td>
+                                    <td style="color: #34d399;">+${{ "{:,.0f}".format(sal.allowances or 0) }}</td>
+                                    <td style="color: #fb7185;">-${{ "{:,.0f}".format(sal.deductions or 0) }}</td>
+                                    <td><strong style="color: #34d399; font-size: 1.05rem;">${{ "{:,.0f}".format(sal.net or 0) }}</strong></td>
+                                    <td><span style="font-weight: 700; color: #cbd5e1;">${{ "{:,.0f}".format(((sal.net or 0) * 12)) }}</span></td>
+                                    <td>
+                                        <span class="status-pill present">✓ {{ sal.status or 'Paid' }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL 1: SHIFT CANDIDATE TO EMPLOYEE -->
+    <div id="shiftModal" class="modal-backdrop">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>⚡ Shift Candidate to Current Employee</h3>
+                <button onclick="closeShiftModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                {% if eligible_candidates %}
+                <form id="shiftCandidateForm" action="/candidate/placeholder/convert_to_employee" method="POST">
+                    <div class="form-group">
+                        <label>Select Hired / Finished Candidate *</label>
+                        <select id="candidateSelect" class="form-control" onchange="updateShiftCandidateDetails()" required>
+                            <option value="">-- Choose a candidate to onboard into employees --</option>
+                            {% for c in eligible_candidates %}
+                            <option value="{{ c.id }}" data-name="{{ c.name }}" data-role="{{ c.position or 'Software Engineer' }}" data-email="{{ c.email or '' }}">
+                                {{ c.name }} — {{ c.position or 'Applicant' }} ({{ c.stage or 'Finished' }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Designation / Role Title *</label>
+                            <input type="text" id="shiftRole" name="role" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Department *</label>
+                            <select name="department" class="form-control" required>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Machine Learning">Machine Learning</option>
+                                <option value="Product & Design">Product & Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Sales">Sales</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Human Resources">Human Resources</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Access Role *</label>
+                            <select id="shiftAccessRole" name="access_role" class="form-control" onchange="toggleTeamLeadField('shiftAccessRole', 'shiftTeamLead')">
+                                <option value="employee">Employee</option>
+                                <option value="team_lead">Team Lead</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned Team Lead</label>
+                            <select id="shiftTeamLead" name="team_lead_id" class="form-control">
+                                <option value="">-- Select Team Lead --</option>
+                                {% for lead in team_leads %}
+                                <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.department }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Casual Leave Quota (Max {{ casual_cap }}/Yr)</label>
+                            <input type="number" name="casual_quota" value="{{ casual_cap }}" min="0" max="{{ casual_cap }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Yearly Leave Quota (Days/Yr)</label>
+                            <input type="number" name="yearly_quota" value="{{ default_yearly_quota }}" min="0" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monthly Base Salary ($) *</label>
+                            <input type="number" name="base_salary" value="85000" step="1000" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Monthly Allowances ($)</label>
+                            <input type="number" name="allowances" value="15000" step="500" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Monthly Deductions (Taxes & Benefits) ($)</label>
+                        <input type="number" name="deductions" value="5000" step="500" class="form-control">
+                    </div>
+
+                    <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; padding: 0.85rem; margin-bottom: 1.25rem; font-size: 0.85rem; color: #cbd5e1;">
+                        💡 <strong>Onboarding Effect:</strong> Candidate will be issued a unique <code>EMP-xxxx</code> ID, credentials for the Employee Portal (default password: <code>emp123</code>), and granted {{ casual_cap }} Casual + Yearly leave allocation.
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                        <button type="button" onclick="closeShiftModal()" class="btn-icon-action">Cancel</button>
+                        <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669);">
+                            🚀 Confirm & Shift to Employee
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div style="text-align: center; padding: 2rem;">
+                    <p style="color: var(--text-muted);">No candidates in Finished or Hired stage are pending conversion.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ADD NEW EMPLOYEE -->
+    <div id="addModal" class="modal-backdrop">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>➕ Add Direct Employee</h3>
+                <button onclick="closeAddModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form action="/employee/add" method="POST">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Full Name *</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Maya Lin" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Work Email *</label>
+                            <input type="email" name="email" class="form-control" placeholder="maya.lin@talentai.corp" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="text" name="phone" class="form-control" placeholder="+1 (555) 000-0000">
+                        </div>
+                        <div class="form-group">
+                            <label>Department *</label>
+                            <select name="department" class="form-control" required>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Machine Learning">Machine Learning</option>
+                                <option value="Product & Design">Product & Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Sales">Sales</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Human Resources">Human Resources</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Designation / Role Title *</label>
+                        <input type="text" name="role" class="form-control" placeholder="e.g. Frontend Engineer" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Access Role *</label>
+                            <select id="addAccessRole" name="access_role" class="form-control" onchange="toggleTeamLeadField('addAccessRole', 'addTeamLead')">
+                                <option value="employee">Employee</option>
+                                <option value="team_lead">Team Lead</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned Team Lead</label>
+                            <select id="addTeamLead" name="team_lead_id" class="form-control">
+                                <option value="">-- Select Team Lead --</option>
+                                {% for lead in team_leads %}
+                                <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.department }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Casual Leave Quota (Max {{ casual_cap }}/Yr)</label>
+                            <input type="number" name="casual_quota" value="{{ casual_cap }}" min="0" max="{{ casual_cap }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Yearly Leave Quota (Days/Yr)</label>
+                            <input type="number" name="yearly_quota" value="{{ default_yearly_quota }}" min="0" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monthly Base Salary ($)</label>
+                            <input type="number" name="base_salary" value="80000" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Monthly Allowances ($)</label>
+                            <input type="number" name="allowances" value="12000" class="form-control">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                        <button type="button" onclick="closeAddModal()" class="btn-icon-action">Cancel</button>
+                        <button type="submit" class="btn-primary">Create Employee Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: EDIT EMPLOYEE -->
+    <div id="editModal" class="modal-backdrop">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>✏️ Edit Employee Profile, Role &amp; Compensation</h3>
+                <button onclick="closeEditModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editEmployeeForm" method="POST">
+                    <div class="form-group">
+                        <label>Employee Name</label>
+                        <input type="text" id="editName" class="form-control" disabled style="opacity: 0.7;">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Role Title *</label>
+                            <input type="text" id="editRole" name="role" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Department *</label>
+                            <select id="editDept" name="department" class="form-control" required>
+                                <option value="Engineering">Engineering</option>
+                                <option value="Machine Learning">Machine Learning</option>
+                                <option value="Product & Design">Product & Design</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Sales">Sales</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Human Resources">Human Resources</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Access Role *</label>
+                            <select id="editAccessRole" name="access_role" class="form-control" onchange="toggleTeamLeadField('editAccessRole', 'editTeamLead')">
+                                <option value="employee">Employee</option>
+                                <option value="team_lead">Team Lead</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned Team Lead</label>
+                            <select id="editTeamLead" name="team_lead_id" class="form-control">
+                                <option value="">-- Select Team Lead --</option>
+                                {% for lead in team_leads %}
+                                <option value="{{ lead.id }}">{{ lead.name }} ({{ lead.department }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Casual Leave Quota (Max {{ casual_cap }}/Yr)</label>
+                            <input type="number" id="editCasualQuota" name="casual_quota" min="0" max="{{ casual_cap }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Yearly Leave Quota (Days/Yr)</label>
+                            <input type="number" id="editYearlyQuota" name="yearly_quota" min="0" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monthly Base ($)</label>
+                            <input type="number" id="editBase" name="base_salary" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Monthly Allowances ($)</label>
+                            <input type="number" id="editAllowances" name="allowances" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Monthly Deductions ($)</label>
+                            <input type="number" id="editDeductions" name="deductions" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Employment Status</label>
+                            <select id="editStatus" name="status" class="form-control">
+                                <option value="Active">Active</option>
+                                <option value="On Leave">On Leave</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                        <button type="button" onclick="closeEditModal()" class="btn-icon-action">Cancel</button>
+                        <button type="submit" class="btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: EMPLOYEE ATTENDANCE CALENDAR -->
+    <div id="calendarModal" class="modal-backdrop">
+        <div class="modal-container" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3>📅 Attendance Calendar: <span id="calEmpName" style="color: #818cf8;"></span></h3>
+                <button onclick="closeCalendarModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <button class="btn-icon-action" onclick="navigateCal(-1)">&larr; Previous</button>
+                    <h4 id="calMonthTitle" style="margin: 0; color: white; font-size: 1.1rem;"></h4>
+                    <button class="btn-icon-action" onclick="navigateCal(1)">Next &rarr;</button>
+                </div>
+
+                <!-- Days of week -->
+                <div class="calendar-grid" style="margin-top: 0.5rem;">
+                    <div class="calendar-header-day">Sun</div>
+                    <div class="calendar-header-day">Mon</div>
+                    <div class="calendar-header-day">Tue</div>
+                    <div class="calendar-header-day">Wed</div>
+                    <div class="calendar-header-day">Thu</div>
+                    <div class="calendar-header-day">Fri</div>
+                    <div class="calendar-header-day">Sat</div>
+                </div>
+
+                <!-- Calendar cells dynamically generated -->
+                <div id="calGridDays" class="calendar-grid"></div>
+
+                <!-- Legend -->
+                <div style="display: flex; gap: 1rem; margin-top: 1.25rem; font-size: 0.78rem; color: var(--text-muted); justify-content: center; flex-wrap: wrap;">
+                    <span style="display: flex; align-items: center; gap: 0.35rem;"><span style="width: 10px; height: 10px; border-radius: 2px; background: rgba(16,185,129,0.3); border: 1px solid #10b981;"></span> Present</span>
+                    <span style="display: flex; align-items: center; gap: 0.35rem;"><span style="width: 10px; height: 10px; border-radius: 2px; background: rgba(245,158,11,0.3); border: 1px solid #f59e0b;"></span> On Leave</span>
+                    <span style="display: flex; align-items: center; gap: 0.35rem;"><span style="width: 10px; height: 10px; border-radius: 2px; background: rgba(99,102,241,0.3); border: 1px solid #6366f1;"></span> Clocked In</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: HR-ONLY CASUAL <-> YEARLY LEAVE CONVERSION -->
+    <div id="convertLeaveModal" class="modal-backdrop">
+        <div class="modal-container" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3>🔄 Convert Leave Type (Casual ↔ Yearly)</h3>
+                <button onclick="closeConvertLeaveModal()" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="convertLeaveForm" method="POST">
+                    <div style="background: rgba(15,23,42,0.7); border: 1px solid var(--card-border); border-radius: 10px; padding: 0.85rem; margin-bottom: 1rem; font-size: 0.86rem;">
+                        <div style="font-weight: 700; color: white;" id="convEmpTitle"></div>
+                        <div style="color: #818cf8; margin-top: 0.2rem;" id="convLeaveMeta"></div>
+                        <div style="color: #94a3b8; margin-top: 0.25rem;" id="convBalanceMeta"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Target Leave Classification *</label>
+                        <select id="convTargetMode" name="target_mode" class="form-control" onchange="toggleConvertSplitInput()" required>
+                            <option value="casual">Convert All to Casual Leave</option>
+                            <option value="yearly">Convert All to Yearly Leave</option>
+                            <option value="split">Custom Split (Casual + Yearly)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="convSplitGroup" style="display: none;">
+                        <label>Casual Days (Remaining go to Yearly) *</label>
+                        <input type="number" id="convCustomCasual" name="custom_casual_days" min="0" class="form-control" oninput="updateConvertSplitPreview()">
+                        <div id="convSplitHint" style="font-size: 0.78rem; color: #94a3b8; margin-top: 0.3rem;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Conversion Reason / Audit Note</label>
+                        <input type="text" name="reason" class="form-control" placeholder="e.g. Adjusted to Yearly Leave per HR policy">
+                    </div>
+
+                    <div style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.28); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 1rem; font-size: 0.78rem; color: #fbbf24;">
+                        ⚠️ Only HR Admin can reclassify leaves. Total Casual Leave used in a year cannot exceed 12 days.
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                        <button type="button" onclick="closeConvertLeaveModal()" class="btn-icon-action">Cancel</button>
+                        <button type="submit" class="btn-primary">Apply Conversion</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content-panel').forEach(panel => panel.style.display = 'none');
+            
+            const targetPanel = document.getElementById('tab-' + tabName);
+            if (targetPanel) {
+                targetPanel.style.display = 'block';
+            }
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
+            
+            // Update URL without reload
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tabName);
+            window.history.pushState({}, '', url);
+        }
+
+        function filterEmployees() {
+            const query = document.getElementById('empSearchInput').value.toLowerCase();
+            const dept = document.getElementById('deptFilterSelect').value.toLowerCase();
+            const rows = document.querySelectorAll('.emp-row');
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const empId = row.getAttribute('data-id') || '';
+                const role = row.getAttribute('data-role') || '';
+                const rowDept = row.getAttribute('data-dept') || '';
+
+                const matchesQuery = name.includes(query) || empId.includes(query) || role.includes(query);
+                const matchesDept = !dept || rowDept.includes(dept);
+
+                row.style.display = (matchesQuery && matchesDept) ? '' : 'none';
+            });
+        }
+
+        function toggleTeamLeadField(roleSelectId, leadSelectId) {
+            const roleSel = document.getElementById(roleSelectId);
+            const leadSel = document.getElementById(leadSelectId);
+            if (!roleSel || !leadSel) return;
+            const isLead = roleSel.value === 'team_lead';
+            if (isLead) {
+                leadSel.value = '';
+                leadSel.disabled = true;
+                leadSel.style.opacity = '0.5';
+            } else {
+                leadSel.disabled = false;
+                leadSel.style.opacity = '1';
+            }
+        }
+
+        function toggleHrSplitInput(selectEl, reqId) {
+            const inp = document.getElementById('hrSplit_' + reqId);
+            if (!inp) return;
+            inp.style.display = (selectEl.value === 'split') ? 'block' : 'none';
+        }
+
+        // Shift candidate modal
+        function openShiftModal() {
+            toggleTeamLeadField('shiftAccessRole', 'shiftTeamLead');
+            document.getElementById('shiftModal').classList.add('show');
+        }
+        function closeShiftModal() {
+            document.getElementById('shiftModal').classList.remove('show');
+        }
+        function updateShiftCandidateDetails() {
+            const select = document.getElementById('candidateSelect');
+            const opt = select.options[select.selectedIndex];
+            if (opt && opt.value) {
+                const form = document.getElementById('shiftCandidateForm');
+                form.action = '/candidate/' + opt.value + '/convert_to_employee';
+                document.getElementById('shiftRole').value = opt.getAttribute('data-role') || 'Software Engineer';
+            }
+        }
+
+        // Add modal
+        function openAddModal() {
+            toggleTeamLeadField('addAccessRole', 'addTeamLead');
+            document.getElementById('addModal').classList.add('show');
+        }
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('show');
+        }
+
+        // Edit modal
+        function openEditModal(btn) {
+            const d = btn.dataset;
+            document.getElementById('editEmployeeForm').action = '/employee/' + d.id + '/edit';
+            document.getElementById('editName').value = d.name + ' (' + d.id + ')';
+            document.getElementById('editRole').value = d.role || '';
+            document.getElementById('editDept').value = d.dept || 'Engineering';
+            document.getElementById('editBase').value = d.base || 80000;
+            document.getElementById('editAllowances').value = d.allowances || 12000;
+            document.getElementById('editDeductions').value = d.deductions || 4000;
+            document.getElementById('editStatus').value = d.status || 'Active';
+            document.getElementById('editAccessRole').value = d.accessRole || 'employee';
+            document.getElementById('editCasualQuota').value = d.casualQuota !== undefined ? d.casualQuota : {{ casual_cap }};
+            document.getElementById('editYearlyQuota').value = d.yearlyQuota !== undefined ? d.yearlyQuota : {{ default_yearly_quota }};
+
+            const leadSel = document.getElementById('editTeamLead');
+            Array.from(leadSel.options).forEach(opt => {
+                opt.hidden = (opt.value && opt.value === d.id);
+            });
+            leadSel.value = d.teamLeadId || '';
+            toggleTeamLeadField('editAccessRole', 'editTeamLead');
+
+            document.getElementById('editModal').classList.add('show');
+        }
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        // Convert Leave Type Modal (HR Only)
+        let curConvDays = 1;
+        function openConvertLeaveModal(btn) {
+            const d = btn.dataset;
+            curConvDays = parseInt(d.days || '1', 10);
+            document.getElementById('convertLeaveForm').action = '/hr/leave/' + d.leaveId + '/convert_type';
+            document.getElementById('convEmpTitle').innerText = d.empName + ' — ' + d.dates + ' (' + curConvDays + ' day(s))';
+            document.getElementById('convLeaveMeta').innerText = 'Current Allocation: ' + d.leaveType;
+            document.getElementById('convBalanceMeta').innerText = 'Approved Casual Used This Year: ' + d.empCasualUsed + '/' + (d.empCasualQuota || 12) + ' | Yearly Remaining: ' + d.empYearlyRem;
+
+            const modeSel = document.getElementById('convTargetMode');
+            modeSel.value = (parseInt(d.casualDays || '0', 10) > 0 && parseInt(d.yearlyDays || '0', 10) === 0) ? 'yearly' : 'casual';
+            const customInp = document.getElementById('convCustomCasual');
+            customInp.max = curConvDays;
+            customInp.value = d.casualDays || 0;
+            toggleConvertSplitInput();
+            document.getElementById('convertLeaveModal').classList.add('show');
+        }
+        function closeConvertLeaveModal() {
+            document.getElementById('convertLeaveModal').classList.remove('show');
+        }
+        function toggleConvertSplitInput() {
+            const mode = document.getElementById('convTargetMode').value;
+            const grp = document.getElementById('convSplitGroup');
+            grp.style.display = (mode === 'split') ? 'block' : 'none';
+            if (mode === 'split') updateConvertSplitPreview();
+        }
+        function updateConvertSplitPreview() {
+            const c = Math.max(0, Math.min(curConvDays, parseInt(document.getElementById('convCustomCasual').value || '0', 10)));
+            const y = curConvDays - c;
+            document.getElementById('convSplitHint').innerText = `Result: ${c} Casual day(s) + ${y} Yearly day(s)`;
+        }
+
+        // Interactive Calendar Modal
+        const nowInitCal = new Date();
+        let curCalEmpId = null;
+        let curCalYear = nowInitCal.getFullYear();
+        let curCalMonth = nowInitCal.getMonth() + 1;
+
+        function openCalendarModal(empId, empName) {
+            curCalEmpId = empId;
+            document.getElementById('calEmpName').innerText = empName;
+            document.getElementById('calendarModal').classList.add('show');
+            loadCalendarData();
+        }
+
+        function closeCalendarModal() {
+            document.getElementById('calendarModal').classList.remove('show');
+        }
+
+        function navigateCal(delta) {
+            curCalMonth += delta;
+            if (curCalMonth > 12) {
+                curCalMonth = 1;
+                curCalYear += 1;
+            } else if (curCalMonth < 1) {
+                curCalMonth = 12;
+                curCalYear -= 1;
+            }
+            loadCalendarData();
+        }
+
+        async function loadCalendarData() {
+            const monthStr = curCalYear + '-' + String(curCalMonth).padStart(2, '0');
+            const dateObj = new Date(curCalYear, curCalMonth - 1, 1);
+            const monthName = dateObj.toLocaleString('default', { month: 'long' });
+            document.getElementById('calMonthTitle').innerText = monthName + ' ' + curCalYear;
+
+            try {
+                const res = await fetch('/api/employee/' + curCalEmpId + '/attendance?month=' + monthStr);
+                const data = await res.json();
+                renderCalendarGrid(data.attendance || []);
+            } catch (err) {
+                console.error(err);
+                renderCalendarGrid([]);
+            }
+        }
+
+        function renderCalendarGrid(records) {
+            const grid = document.getElementById('calGridDays');
+            grid.innerHTML = '';
+
+            const firstDayIndex = new Date(curCalYear, curCalMonth - 1, 1).getDay();
+            const daysInMonth = new Date(curCalYear, curCalMonth, 0).getDate();
+
+            // Map records by date string YYYY-MM-DD
+            const recMap = {};
+            records.forEach(r => {
+                recMap[r.date] = r;
+            });
+
+            // Empty cells before day 1
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-cell empty';
+                grid.appendChild(emptyCell);
+            }
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dStr = curCalYear + '-' + String(curCalMonth).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                const cell = document.createElement('div');
+                cell.className = 'calendar-cell';
+                if (dStr === todayStr) {
+                    cell.classList.add('today');
+                }
+
+                const rec = recMap[dStr];
+                let tagHtml = '';
+                if (rec) {
+                    if (rec.status === 'Present') {
+                        cell.classList.add('present');
+                        tagHtml = '<span class="cal-tag green">' + (rec.total_hours ? rec.total_hours + 'h' : 'Present') + '</span>';
+                    } else if (rec.status === 'On Leave') {
+                        cell.classList.add('leave');
+                        tagHtml = '<span class="cal-tag amber">On Leave</span>';
+                    } else if (rec.clock_in && !rec.clock_out) {
+                        cell.classList.add('present');
+                        tagHtml = '<span class="cal-tag purple">In: ' + rec.clock_in + '</span>';
+                    }
+                }
+
+                cell.innerHTML = '<span class="cal-num">' + day + '</span>' + tagHtml;
+                grid.appendChild(cell);
+            }
+        }
+    </script>
+</body>
+</html>

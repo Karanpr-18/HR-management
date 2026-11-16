@@ -42,10 +42,209 @@
                 {{ app.candidate.status or 'pending' }}
             </div>
         </div>
-        <!-- Scores section removed for applicants -->
+
+        {% set intv = app.candidate.get('interview') %}
+        {% if intv %}
+        <div style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
+            {% if intv.status == 'pending_candidate_response' %}
+                <div style="background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.15)); border: 1px solid rgba(139,92,246,0.35); border-radius: 12px; padding: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-weight: 700; color: #a78bfa; font-size: 1.05rem;">🎉 Interview Invitation</span>
+                        <span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 999px;">Action Required</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                        <div><span style="color: var(--text-secondary);">📅 Date:</span> <strong style="color: var(--text-primary);">{{ intv.date }}</strong></div>
+                        <div><span style="color: var(--text-secondary);">⏰ Time:</span> <strong style="color: var(--text-primary);">{{ intv.time }}</strong></div>
+                        <div><span style="color: var(--text-secondary);">📋 Round:</span> <strong style="color: var(--text-primary);">{{ intv.round_title }}</strong></div>
+                    </div>
+                    {% if intv.meeting_link %}
+                    <div style="margin-bottom: 0.5rem; font-size: 0.85rem;">
+                        <span style="color: var(--text-secondary);">🔗 Meeting Link:</span> <a href="{{ intv.meeting_link }}" target="_blank" style="color: #818cf8; font-weight: 600;">{{ intv.meeting_link }}</a>
+                    </div>
+                    {% endif %}
+                    {% if intv.hr_note %}
+                    <div style="margin-bottom: 1rem; font-size: 0.85rem; color: var(--text-secondary); background: rgba(0,0,0,0.2); padding: 0.6rem; border-radius: 6px;">
+                        📝 <em>Note from HR: {{ intv.hr_note }}</em>
+                    </div>
+                    {% endif %}
+
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem;">
+                        <!-- Accept Action -->
+                        <form action="/candidate/{{ app.candidate.id }}/interview_action" method="POST" style="margin: 0;">
+                            <input type="hidden" name="action" value="accept">
+                            <button type="submit" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                ✅ Accept & Confirm
+                            </button>
+                        </form>
+
+                        <!-- Reschedule Trigger -->
+                        <button type="button" onclick="openCandidateReschedule('{{ app.candidate.id }}', '{{ intv.date }}', '{{ intv.time }}')" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            📅 Request Different Date/Time
+                        </button>
+
+                        <!-- Decline Action -->
+                        <form action="/candidate/{{ app.candidate.id }}/interview_action" method="POST" style="margin: 0;" onsubmit="return confirm('Are you sure you want to decline this interview?');">
+                            <input type="hidden" name="action" value="decline">
+                            <button type="submit" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                                Decline
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            {% elif intv.status == 'reschedule_requested' %}
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 1rem 1.25rem;">
+                    <div style="font-weight: 700; color: #fbbf24; margin-bottom: 0.3rem;">⏳ Reschedule Request Pending HR Approval</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                        You requested to reschedule to <strong>{{ intv.reschedule_request.proposed_date if intv.reschedule_request else '' }} at {{ intv.reschedule_request.proposed_time if intv.reschedule_request else '' }}</strong>.
+                        {% if intv.reschedule_request and intv.reschedule_request.reason %}<br><em>Reason: {{ intv.reschedule_request.reason }}</em>{% endif %}
+                    </div>
+                </div>
+
+            {% elif intv.status == 'confirmed' %}
+                <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 1rem 1.25rem;">
+                    <div style="font-weight: 700; color: #22c55e; margin-bottom: 0.3rem;">✅ Interview Confirmed!</div>
+                    <div style="font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem;">
+                        Scheduled for <strong>{{ intv.date }} at {{ intv.time }}</strong> ({{ intv.round_title }})
+                    </div>
+                    {% if intv.meeting_link %}
+                    <a href="{{ intv.meeting_link }}" target="_blank" style="display: inline-block; background: #6366f1; color: white; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none;">
+                        🔗 Join Interview Meeting
+                    </a>
+                    {% endif %}
+                </div>
+
+            {% elif intv.status == 'declined' %}
+                <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 0.75rem 1rem; color: #ef4444; font-size: 0.85rem;">
+                    Interview invitation declined.
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Communication Thread with HR Recruitment Team -->
+        <div style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>💬</span> Updates & Communication with HR
+                </div>
+                {% if app.candidate.stage %}
+                <span style="font-size: 0.75rem; background: rgba(99, 102, 241, 0.2); color: #c4b5fd; padding: 2px 10px; border-radius: 999px; font-weight: 700; border: 1px solid rgba(139, 92, 246, 0.4);">
+                    Current Stage: {{ app.candidate.stage }}
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Messages list (filtering out internal notes) -->
+            {% set msgs = app.candidate.timeline|default([]) %}
+            <div style="max-height: 200px; overflow-y: auto; background: rgba(15, 20, 25, 0.6); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.75rem;">
+                {% if not msgs %}
+                    <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem;">
+                        No messages yet. Send a question or note below!
+                    </div>
+                {% else %}
+                    {% for m in msgs %}
+                        {% if m.type != 'internal_note' %}
+                            <div style="display: flex; flex-direction: column; {% if m.sender == 'candidate' %}align-self: flex-end; align-items: flex-end;{% else %}align-self: flex-start; align-items: flex-start;{% endif %} max-width: 85%;">
+                                <span style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 2px;">
+                                    {% if m.sender == 'candidate' %}You{% else %}{{ m.sender_name|default('HR Team') }}{% endif %} • {{ m.timestamp[11:16] if m.timestamp else '' }}
+                                </span>
+                                <div style="padding: 0.5rem 0.85rem; border-radius: 10px; font-size: 0.85rem; {% if m.sender == 'candidate' %}background: #6366f1; color: white; border-bottom-right-radius: 2px;{% elif m.type == 'interview' %}background: rgba(139, 92, 246, 0.2); border: 1px solid rgba(139, 92, 246, 0.4); color: #e0e7ff;{% else %}background: #1e2634; color: var(--text-primary); border: 1px solid rgba(255,255,255,0.08); border-bottom-left-radius: 2px;{% endif %}">
+                                    <div>{{ m.content }}</div>
+                                    {% set att = m.metadata.attachment if (m.metadata and m.metadata.attachment) else m.attachment %}
+                                    {% if att %}
+                                        <div style="margin-top: 0.45rem; display: flex; align-items: center; gap: 0.5rem; background: rgba(0,0,0,0.28); padding: 0.4rem 0.65rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1);">
+                                            <span>📎</span>
+                                            <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" style="color: #c4b5fd; text-decoration: underline; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px;" title="Download {{ att.filename }}">
+                                                {{ att.filename }}
+                                            </a>
+                                            <span style="opacity: 0.7; font-size: 0.72rem;">({{ att.file_size }})</span>
+                                            <a href="{{ att.file_url }}" target="_blank" download="{{ att.filename }}" style="color: #a5b4fc; text-decoration: none; margin-left: auto;">⬇️</a>
+                                        </div>
+                                        {% if att.file_type in ['png', 'jpg', 'jpeg', 'webp', 'gif'] %}
+                                            <div style="margin-top: 0.45rem;">
+                                                <a href="{{ att.file_url }}" target="_blank">
+                                                    <img src="{{ att.file_url }}" alt="{{ att.filename }}" style="max-width: 200px; max-height: 150px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);">
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Quick Reply Form -->
+            <form action="/candidate/{{ app.candidate.id }}/applicant_reply" method="POST" enctype="multipart/form-data" style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" name="content" placeholder="Send a message or query to the HR team..." style="flex: 1; padding: 0.6rem 0.85rem; background: rgba(15, 20, 25, 0.8); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 0.85rem; outline: none;">
+                <label style="margin: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); border-radius: 8px; color: #c4b5fd;" title="Attach file">
+                    📎
+                    <input type="file" name="attachment" style="display: none;" onchange="if(this.files[0]) this.parentElement.style.background='rgba(99,102,241,0.3)';">
+                </label>
+                <button type="submit" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">
+                    Reply 📤
+                </button>
+            </form>
+        </div>
     </div>
     {% endfor %}
 </div>
+
+<!-- Candidate Reschedule Modal -->
+<div id="candidateRescheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; width: 90%; max-width: 480px; padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+            <h3 style="margin: 0; font-size: 1.2rem; color: var(--text-primary);">📅 Propose New Interview Time</h3>
+            <button type="button" onclick="closeCandidateReschedule()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+        </div>
+        <form id="candidateRescheduleForm" action="" method="POST">
+            <input type="hidden" name="action" value="reschedule">
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Select a date and time when you are available. HR will review and approve your requested slot.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Preferred Date *</label>
+                    <input type="date" name="proposed_date" required style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Preferred Time *</label>
+                    <input type="time" name="proposed_time" required style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                </div>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.3rem;">Reason for Rescheduling</label>
+                <textarea name="reason" rows="2" placeholder="e.g. Prior exam/work commitment at proposed time..." style="width: 100%; padding: 0.6rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="button" onclick="closeCandidateReschedule()" class="btn-secondary" style="padding: 0.6rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); cursor: pointer;">Cancel</button>
+                <button type="submit" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600; cursor: pointer;">Send Request to HR</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openCandidateReschedule(candidateId, currentDate, currentTime) {
+        const modal = document.getElementById('candidateRescheduleModal');
+        const form = document.getElementById('candidateRescheduleForm');
+        form.action = `/candidate/${candidateId}/interview_action`;
+        modal.style.display = 'flex';
+    }
+
+    function closeCandidateReschedule() {
+        document.getElementById('candidateRescheduleModal').style.display = 'none';
+    }
+
+    window.addEventListener('click', function(e) {
+        const modal = document.getElementById('candidateRescheduleModal');
+        if (e.target === modal) {
+            closeCandidateReschedule();
+        }
+    });
+</script>
 {% else %}
 <div style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
     <h3>No applications yet</h3>

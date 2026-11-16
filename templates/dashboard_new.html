@@ -50,6 +50,25 @@
                     </a>
                 </li>
                 <li class="sidebar-nav-item">
+                    <a href="/candidate" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        Candidates
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a href="/employees" class="sidebar-nav-link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Current Employees
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
                     <a href="/employer" class="sidebar-nav-link">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path
@@ -69,22 +88,55 @@
             <div class="top-header">
                 <h1 class="header-title">Welcome back! 👋</h1>
                 <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
-                    <label style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Filter by
-                        Role:</label>
+                    <label style="color: var(--text-secondary); font-size: 0.9rem; font-weight: 600;">Filter by Role:</label>
                     <select onchange="window.location.href=this.value"
                         style="background: #1e1b4b; border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 10px; padding: 0.625rem 1.25rem; color: #e0e7ff; font-size: 0.9rem; font-weight: 600; cursor: pointer; min-width: 200px; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill=%23a78bfa height=24 viewBox=\'0 0 24 24\' width=24 xmlns=http://www.w3.org/2000/svg><path d=\'M7 10l5 5 5-5z\' /></svg>'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.25rem; padding-right: 2.5rem;">
-                        <option value="/dashboard" style="background: #1e1b4b; color: #e0e7ff;" {% if not
-                            selected_position %}selected{% endif %}>All Positions</option>
+                        <option value="/dashboard" style="background: #1e1b4b; color: #e0e7ff;" {% if not selected_position %}selected{% endif %}>All Positions</option>
                         {% for p in positions %}
-                        <option value="/dashboard/{{ p.id }}" style="background: #1e1b4b; color: #e0e7ff;" {% if
-                            selected_position and selected_position.id==p.id %}selected{% endif %}>{{ p.title }}
-                        </option>
+                        <option value="/dashboard/{{ p.id }}" style="background: #1e1b4b; color: #e0e7ff;" {% if selected_position and selected_position.id==p.id %}selected{% endif %}>{{ p.title }}</option>
                         {% endfor %}
                     </select>
+
+                    <!-- In-App Notification Bell -->
+                    <div style="position: relative;">
+                        <button id="notifBellBtn" onclick="toggleNotifDropdown()" style="position: relative; background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.6rem; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Notifications">
+                            <span style="font-size: 1.2rem;">🔔</span>
+                            <span id="notifBadge" style="display: none; position: absolute; top: -4px; right: -4px; background: #ef4444; color: white; border-radius: 50%; font-size: 0.65rem; font-weight: 700; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center;">0</span>
+                        </button>
+                        <div id="notifDropdown" style="display: none; position: absolute; right: 0; top: 120%; width: 330px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 1000; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); background: rgba(0,0,0,0.2);">
+                                <strong style="font-size: 0.9rem; color: var(--text-primary);">In-App Notifications</strong>
+                                <button onclick="markAllNotificationsRead()" style="background: none; border: none; color: #8b5cf6; font-size: 0.75rem; cursor: pointer; font-weight: 600;">Mark all read</button>
+                            </div>
+                            <div id="notifList" style="max-height: 280px; overflow-y: auto;">
+                                <div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">Loading notifications...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="content-wrapper">
+                <!-- Reschedule Alert Banner -->
+                {% if pending_reschedules %}
+                <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 1.6rem;">⚠️</span>
+                        <div>
+                            <div style="font-weight: 700; color: #fbbf24; font-size: 1rem;">Candidate Reschedule Requests Pending!</div>
+                            <div style="color: var(--text-secondary); font-size: 0.85rem;">{{ pending_reschedules|length }} candidate(s) proposed a different time for their interview.</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        {% for pr in pending_reschedules %}
+                        <button class="btn-primary" style="background: #f59e0b; color: #0f172a; font-size: 0.85rem; padding: 0.4rem 0.8rem; font-weight: 700; border: none; border-radius: 8px; cursor: pointer;" onclick="openRescheduleModal('{{ pr.id }}', '{{ pr.name }}', '{{ pr.interview.reschedule_request.proposed_date }}', '{{ pr.interview.reschedule_request.proposed_time }}', '{{ pr.interview.reschedule_request.reason|default('')|escape }}')">
+                            Review {{ pr.name }} ({{ pr.interview.reschedule_request.proposed_date }}) →
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Flash Messages -->
                 {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -119,8 +171,7 @@
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Highest Exp</div>
-                        <div class="stat-value">{{ candidates | map(attribute='python_experience_years') | max if
-                            candidates else 0 }}</div>
+                        <div class="stat-value">{{ (candidates | selectattr('python_experience_years', 'defined') | map(attribute='python_experience_years') | max) if (candidates | selectattr('python_experience_years', 'defined') | list) else 0 }}</div>
                         <div class="stat-trend">📊 Years</div>
                     </div>
                     <div class="stat-card">
@@ -156,6 +207,7 @@
                                     <th>Method</th>
                                     <th>Final Score</th>
                                     <th>Status</th>
+                                    <th>Interview</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -196,7 +248,7 @@
                                     </td>
                                     <td style="font-weight: 600;">{{ c.get('experience_score', 0) if
                                         c.get('experience_score') else 'N/A' }}</td>
-                                    <td style="color: var(--text-secondary);">{{ c.python_experience_years }}</td>
+                                    <td style="color: var(--text-secondary);">{{ c.get('python_experience_years', 'N/A') }}</td>
                                     <td>
                                         {% set method = c.get('analysis_method', 'Rule-Based') | string %}
                                         <span
@@ -219,25 +271,74 @@
                                     <td>
                                         <form action="/update_status/{{ c.id }}" method="POST">
                                             <select name="status" onchange="this.form.submit()"
-                                                class="status-select {% if c.status == 'Accepted' %}status-accepted{% elif c.status == 'Rejected' %}status-rejected{% else %}status-pending{% endif %}">
-                                                <option value="Pending" {% if not c.status or c.status=='Pending'
-                                                    %}selected{% endif %}>⏳ Pending</option>
-                                                <option value="Accepted" {% if c.status=='Accepted' %}selected{% endif
-                                                    %}>✅ Accepted</option>
-                                                <option value="Rejected" {% if c.status=='Rejected' %}selected{% endif
-                                                    %}>❌ Rejected</option>
+                                                class="status-select {% if c.status|lower == 'accepted' %}status-accepted{% elif c.status|lower == 'rejected' %}status-rejected{% else %}status-pending{% endif %}">
+                                                <option value="pending" {% if not c.status or c.status|lower=='pending' %}selected{% endif %}>⏳ Pending</option>
+                                                <option value="accepted" {% if c.status|lower=='accepted' %}selected{% endif %}>✅ Accepted</option>
+                                                <option value="rejected" {% if c.status|lower=='rejected' %}selected{% endif %}>❌ Rejected</option>
                                             </select>
                                         </form>
                                     </td>
                                     <td>
+                                        {% set intv = c.get('interview') %}
+                                        {% if intv %}
+                                            {% if intv.status == 'confirmed' %}
+                                                <div style="display: flex; flex-direction: column; gap: 3px;">
+                                                    <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);">
+                                                        ✅ Confirmed
+                                                    </span>
+                                                    <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ intv.date }} @ {{ intv.time }}</span>
+                                                </div>
+                                            {% elif intv.status == 'reschedule_requested' %}
+                                                <div style="display: flex; flex-direction: column; gap: 3px;">
+                                                    <button type="button" onclick="openRescheduleModal('{{ c.id }}', '{{ c.name }}', '{{ intv.reschedule_request.proposed_date if intv.reschedule_request else '' }}', '{{ intv.reschedule_request.proposed_time if intv.reschedule_request else '' }}', '{{ (intv.reschedule_request.reason if intv.reschedule_request else '')|escape }}')" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); cursor: pointer;">
+                                                        ⚠️ Reschedule Req.
+                                                    </button>
+                                                    <span style="font-size: 0.7rem; color: #fbbf24;">Proposed: {{ intv.reschedule_request.proposed_date if intv.reschedule_request else '' }}</span>
+                                                </div>
+                                            {% elif intv.status == 'declined' %}
+                                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                                    ❌ Declined
+                                                </span>
+                                            {% else %}
+                                                <div style="display: flex; flex-direction: column; gap: 3px;">
+                                                    <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">
+                                                        ⏳ Invite Sent
+                                                    </span>
+                                                    <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ intv.date }} @ {{ intv.time }}</span>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <button type="button" onclick="openScheduleModal('{{ c.id }}', '{{ c.name }}')" style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2)); color: #c7d2fe; border: 1px solid rgba(139,92,246,0.3); cursor: pointer;">
+                                                📅 Schedule
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                            <a href="/candidate/{{ c.id }}" class="view-link" title="View Details">
+                                            {% if intv %}
+                                            <button type="button" class="view-link" title="Edit Interview Schedule" onclick="openScheduleModal('{{ c.id }}', '{{ c.name }}', '{{ intv.date }}', '{{ intv.time }}', '{{ intv.round_title }}', '{{ intv.meeting_link }}', '{{ intv.hr_note|default('')|escape }}')" style="background: none; border: none; cursor: pointer; font-size: 1rem;">
+                                                📅
+                                            </button>
+                                            {% endif %}
+                                            <a href="/candidate?id={{ c.id }}" class="view-link" title="Open Candidate Chat & Updates" style="color: #a78bfa; font-size: 1.1rem; text-decoration: none;">
+                                                💬
+                                            </a>
+                                            <a href="/candidate/{{ c.id }}?view=scores" class="view-link" title="View AI Resume Analysis">
                                                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
                                                     stroke="currentColor" stroke-width="2">
                                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                                     <circle cx="12" cy="12" r="3"></circle>
                                                 </svg>
                                             </a>
+                                            {% if c.employee_id %}
+                                            <span style="font-size: 0.72rem; font-weight: 700; color: #34d399; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 2px 6px; border-radius: 4px;">EMP Active</span>
+                                            {% elif c.stage == 'Finished' or c.status|lower == 'accepted' %}
+                                            <form action="/candidate/{{ c.id }}/convert_to_employee" method="POST" style="display:inline;" onsubmit="return confirm('Shift {{ c.name }} to Current Employees directory?');">
+                                                <button type="submit" class="view-link" title="Shift Candidate to Current Employee" style="background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.35); border-radius: 6px; padding: 3px 8px; color: #34d399; font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                                                    ⚡ Shift
+                                                </button>
+                                            </form>
+                                            {% endif %}
                                             <button type="button" class="delete-btn" title="Delete Applicant"
                                                 onclick="openDeleteModal('{{ c.id }}', '{{ c.name }}')">
                                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
@@ -299,6 +400,117 @@
             </div>
         </div>
     </div>
+
+    <!-- Schedule Interview Modal -->
+    <div id="scheduleModal" class="modal-overlay">
+        <div class="modal" style="max-width: 520px; text-align: left;">
+            <form id="scheduleForm" action="" method="POST">
+                <div class="modal-header" style="flex-direction: row; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem;">
+                    <h3 class="modal-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem;">
+                        <span>📅</span> <span id="scheduleModalTitle">Schedule Interview</span>
+                    </h3>
+                    <button type="button" onclick="closeScheduleModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem; text-align: left; display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Candidate</label>
+                        <input type="text" id="scheduleCandidateName" readonly style="width: 100%; padding: 0.6rem 0.8rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-secondary); font-weight: 600;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Date *</label>
+                            <input type="date" name="date" id="scheduleDate" required style="width: 100%; padding: 0.6rem 0.8rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Time *</label>
+                            <input type="time" name="time" id="scheduleTime" required style="width: 100%; padding: 0.6rem 0.8rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Round / Title</label>
+                        <input type="text" name="round_title" id="scheduleRoundTitle" placeholder="e.g. Technical Round 1 - Python" value="Technical Interview" style="width: 100%; padding: 0.6rem 0.8rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Meeting Link (Google Meet / Zoom / Teams)</label>
+                        <input type="url" name="meeting_link" id="scheduleMeetingLink" placeholder="https://meet.google.com/..." style="width: 100%; padding: 0.6rem 0.8rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem;">Instructions / Notes for Candidate</label>
+                        <textarea name="hr_note" id="scheduleHrNote" rows="2" placeholder="Preparation tips, agenda, or guidelines..." style="width: 100%; padding: 0.6rem 0.8rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); resize: vertical;"></textarea>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #10b981; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>✉️</span> Candidate will automatically receive an in-app notification & email alert.
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1rem 1.5rem;">
+                    <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600; border: none; cursor: pointer;">
+                        Send Interview Invite
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Review Reschedule Request Modal -->
+    <div id="rescheduleModal" class="modal-overlay">
+        <div class="modal" style="max-width: 520px; text-align: left;">
+            <form id="rescheduleForm" action="" method="POST">
+                <div class="modal-header" style="flex-direction: row; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem;">
+                    <h3 class="modal-title" style="margin: 0; color: #f59e0b; display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem;">
+                        <span>⚠️</span> Review Reschedule Request
+                    </h3>
+                    <button type="button" onclick="closeRescheduleModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem; text-align: left; display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 1rem;">
+                        <div style="font-weight: 700; color: var(--text-primary); font-size: 1rem; margin-bottom: 0.5rem;" id="rescheduleCandName">Candidate</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.3rem;">
+                            <strong>Candidate's Proposed Slot:</strong> <span id="rescheduleProposedSlot" style="color: #fbbf24; font-weight: 700;"></span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            <strong>Reason:</strong> <span id="rescheduleReason" style="font-style: italic;"></span>
+                        </div>
+                    </div>
+
+                    <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-primary);">Choose Decision:</div>
+                    <div style="display: flex; gap: 1.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary); font-size: 0.9rem;">
+                            <input type="radio" name="decision" value="approve" checked onchange="toggleCounterFields(false)">
+                            <strong>Approve Proposed Slot</strong>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary); font-size: 0.9rem;">
+                            <input type="radio" name="decision" value="counter" onchange="toggleCounterFields(true)">
+                            <strong>Propose Different Slot</strong>
+                        </label>
+                    </div>
+
+                    <div id="counterFields" style="display: none; flex-direction: column; gap: 0.8rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem;">Counter Date</label>
+                                <input type="date" name="new_date" style="width: 100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem;">Counter Time</label>
+                                <input type="time" name="new_time" style="width: 100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem;">Note to Candidate</label>
+                            <input type="text" name="hr_note" placeholder="Explain counter offer..." style="width: 100%; padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1rem 1.5rem;">
+                    <button type="button" class="btn-secondary" onclick="closeRescheduleModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 600; border: none; cursor: pointer;">
+                        Submit Decision
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     </main>
     </div>
 
@@ -311,20 +523,129 @@
 
             form.action = `/delete_candidate/${candidateId}`;
             nameSpan.textContent = candidateName;
-
             modal.style.display = 'flex';
-            // Slight delay to trigger transition if we add one, or just display flex
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').style.display = 'none';
         }
 
-        // Close modal if clicking outside
+        function openScheduleModal(candidateId, candidateName, date = '', time = '', round = 'Technical Interview', link = '', notes = '') {
+            const modal = document.getElementById('scheduleModal');
+            const form = document.getElementById('scheduleForm');
+            form.action = `/candidate/${candidateId}/schedule`;
+
+            document.getElementById('scheduleCandidateName').value = candidateName;
+            document.getElementById('scheduleDate').value = date;
+            document.getElementById('scheduleTime').value = time;
+            document.getElementById('scheduleRoundTitle').value = round || 'Technical Interview';
+            document.getElementById('scheduleMeetingLink').value = link || '';
+            document.getElementById('scheduleHrNote').value = notes || '';
+            document.getElementById('scheduleModalTitle').textContent = date ? 'Update Interview Schedule' : 'Schedule Interview';
+
+            modal.style.display = 'flex';
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('scheduleModal').style.display = 'none';
+        }
+
+        function openRescheduleModal(candidateId, candidateName, proposedDate, proposedTime, reason) {
+            const modal = document.getElementById('rescheduleModal');
+            const form = document.getElementById('rescheduleForm');
+            form.action = `/candidate/${candidateId}/resolve_reschedule`;
+
+            document.getElementById('rescheduleCandName').textContent = candidateName;
+            document.getElementById('rescheduleProposedSlot').textContent = `${proposedDate} at ${proposedTime}`;
+            document.getElementById('rescheduleReason').textContent = reason || 'No specific reason provided';
+
+            // Reset decision radio to approve
+            const approveRadio = form.querySelector('input[value="approve"]');
+            if (approveRadio) approveRadio.checked = true;
+            toggleCounterFields(false);
+
+            modal.style.display = 'flex';
+        }
+
+        function closeRescheduleModal() {
+            document.getElementById('rescheduleModal').style.display = 'none';
+        }
+
+        function toggleCounterFields(show) {
+            const counterDiv = document.getElementById('counterFields');
+            if (counterDiv) {
+                counterDiv.style.display = show ? 'flex' : 'none';
+            }
+        }
+
+        // Notification center handling
+        let notifsLoaded = false;
+        function toggleNotifDropdown() {
+            const dd = document.getElementById('notifDropdown');
+            if (dd.style.display === 'block') {
+                dd.style.display = 'none';
+            } else {
+                dd.style.display = 'block';
+                loadNotifications();
+            }
+        }
+
+        function loadNotifications() {
+            fetch('/api/notifications')
+                .then(r => r.json())
+                .then(data => {
+                    const list = document.getElementById('notifList');
+                    const badge = document.getElementById('notifBadge');
+                    
+                    if (data.unread_count > 0) {
+                        badge.style.display = 'flex';
+                        badge.textContent = data.unread_count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+
+                    if (!data.notifications || data.notifications.length === 0) {
+                        list.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">No notifications yet</div>';
+                        return;
+                    }
+
+                    list.innerHTML = data.notifications.map(n => `
+                        <div style="padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); background: ${n.read ? 'transparent' : 'rgba(99,102,241,0.08)'}; display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="font-size: 0.85rem; color: ${n.read ? 'var(--text-secondary)' : 'var(--text-primary)'};">${n.title}</strong>
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">${n.created_at ? n.created_at.substring(11, 16) : ''}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.3;">${n.message}</div>
+                            ${n.link ? `<a href="${n.link}" style="font-size: 0.75rem; color: #8b5cf6; text-decoration: none; font-weight: 600; margin-top: 2px;">View &rarr;</a>` : ''}
+                        </div>
+                    `).join('');
+                })
+                .catch(err => console.error("Error loading notifications:", err));
+        }
+
+        function markAllNotificationsRead() {
+            fetch('/api/notifications/mark_all_read', { method: 'POST' })
+                .then(() => loadNotifications());
+        }
+
+        // Periodically refresh notification badge
+        loadNotifications();
+        setInterval(loadNotifications, 15000);
+
+        // Close modals and dropdown if clicking outside
         window.onclick = function (event) {
-            const modal = document.getElementById('deleteModal');
-            if (event.target == modal) {
-                closeDeleteModal();
+            const deleteModal = document.getElementById('deleteModal');
+            const scheduleModal = document.getElementById('scheduleModal');
+            const rescheduleModal = document.getElementById('rescheduleModal');
+            const notifDropdown = document.getElementById('notifDropdown');
+            const notifBtn = document.getElementById('notifBellBtn');
+
+            if (event.target == deleteModal) closeDeleteModal();
+            if (event.target == scheduleModal) closeScheduleModal();
+            if (event.target == rescheduleModal) closeRescheduleModal();
+
+            if (notifDropdown && notifBtn && !notifDropdown.contains(event.target) && !notifBtn.contains(event.target)) {
+                notifDropdown.style.display = 'none';
             }
         }
     </script>
