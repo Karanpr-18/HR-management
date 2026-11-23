@@ -1608,6 +1608,11 @@ def request_entity_too_large(error):
     return redirect(request.referrer or url_for('index'))
 
 if __name__ == '__main__':
+    try:
+        import database
+        database.init_db(seed_if_empty=True)
+    except Exception as exc:
+        app.logger.warning(f"Database auto-initialization skipped: {exc}")
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('DEBUG', 'false').lower() in ('true', '1')
     app.run(host='0.0.0.0', port=port, debug=debug)

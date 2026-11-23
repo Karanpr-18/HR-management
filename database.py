@@ -19,9 +19,14 @@ try:
 except ImportError:
     pass
 
-import psycopg2
-import psycopg2.pool
-import psycopg2.extras
+try:
+    import psycopg2
+    import psycopg2.pool
+    import psycopg2.extras
+    HAS_PSYCOPG2 = True
+except ImportError:
+    psycopg2 = None
+    HAS_PSYCOPG2 = False
 
 logger = logging.getLogger("talentai.database")
 if not logger.handlers:
@@ -33,7 +38,7 @@ if not logger.handlers:
 # =============================================================================
 # Global Pool & Concurrency Lock
 # =============================================================================
-_pool: Optional[psycopg2.pool.ThreadedConnectionPool] = None
+_pool = None
 _pool_lock = threading.Lock()
 _mock_connection = None  # Hook for mock connections during unit tests
 _fallback_connection = None  # Resilient in-memory fallback connection
@@ -470,9 +475,12 @@ def get_pool(
     minconn: Optional[int] = None,
     maxconn: Optional[int] = None,
     force_reconnect: bool = False
-) -> psycopg2.pool.ThreadedConnectionPool:
+):
     """Returns singleton ThreadedConnectionPool instance."""
     global _pool
+
+    if not HAS_PSYCOPG2:
+        raise RuntimeError("psycopg2 is not installed. Using in-memory fallback database.")
 
     with _pool_lock:
         if force_reconnect and _pool is not None:
@@ -532,11 +540,16 @@ def get_connection():
         yield _mock_connection
         return
 
+    if not HAS_PSYCOPG2:
+        yield _get_fallback_connection()
+        return
+
     try:
         pool = get_pool()
         conn = pool.getconn()
         try:
-            psycopg2.extras.register_default_jsonb(conn)
+            if hasattr(psycopg2, "extras") and hasattr(psycopg2.extras, "register_default_jsonb"):
+                psycopg2.extras.register_default_jsonb(conn)
             yield conn
         finally:
             pool.putconn(conn)
@@ -549,7 +562,11 @@ def get_connection():
 def get_cursor(commit: bool = True, dict_cursor: bool = True):
     """Context manager yielding a cursor with automated commit and rollback."""
     with get_connection() as conn:
-        cursor_factory = psycopg2.extras.RealDictCursor if (dict_cursor and hasattr(psycopg2.extras, "RealDictCursor")) else None
+        cursor_factory = (
+            psycopg2.extras.RealDictCursor
+            if (HAS_PSYCOPG2 and dict_cursor and hasattr(psycopg2, "extras") and hasattr(psycopg2.extras, "RealDictCursor"))
+            else None
+        )
         try:
             cur = conn.cursor(cursor_factory=cursor_factory)
         except TypeError:
@@ -559,10 +576,16 @@ def get_cursor(commit: bool = True, dict_cursor: bool = True):
             if commit:
                 conn.commit()
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
         finally:
-            cur.close()
+            try:
+                cur.close()
+            except Exception:
+                pass
 
 
 @contextmanager
@@ -600,7 +623,7 @@ def execute_batch(
     if not params_list:
         return 0
     with get_cursor(commit=commit, dict_cursor=False) as cur:
-        if hasattr(psycopg2.extras, "execute_batch"):
+        if HAS_PSYCOPG2 and hasattr(psycopg2, "extras") and hasattr(psycopg2.extras, "execute_batch"):
             try:
                 psycopg2.extras.execute_batch(cur, query, params_list)
                 return len(params_list)
@@ -628,7 +651,10 @@ def to_json(val: Any) -> Any:
     if val is None:
         return None
     if isinstance(val, (dict, list)):
-        return psycopg2.extras.Json(val)
+        if HAS_PSYCOPG2 and hasattr(psycopg2, "extras") and hasattr(psycopg2.extras, "Json"):
+            return psycopg2.extras.Json(val)
+        import json
+        return json.dumps(val)
     return val
 
 
