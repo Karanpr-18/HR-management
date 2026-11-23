@@ -8,3 +8,4 @@ pandas==3.0.0
 google-genai==1.61.0
 groq==1.0.0
 requests==2.32.5
+psycopg2-binary==2.9.13
