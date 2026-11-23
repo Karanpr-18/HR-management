@@ -2,13 +2,385 @@ import json
 import os
 import uuid
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
+
+try:
+    import database
+except ImportError:
+    database = None
 
 DATA_FILE = os.environ.get("DATA_FILE", "data.json")
 CASUAL_LEAVE_YEARLY_CAP = 12
 DEFAULT_YEARLY_LEAVE_QUOTA = 15
 VALID_ACCESS_ROLES = ("employee", "team_lead")
 ACTIVE_LEAVE_STATUSES = ("pending_lead", "pending_hr", "approved")
+
+def _use_postgres() -> bool:
+    """
+    Determines if PostgreSQL backend should be used for data operations.
+    Returns True when database connection or mock is available and enabled.
+    Falls back gracefully to JSON storage otherwise.
+    """
+    if database is None:
+        return False
+    if getattr(database, "_mock_connection", None) is not None:
+        return True
+    explicit = os.environ.get("USE_POSTGRES", "").strip().lower()
+    if explicit in ("0", "false", "no"):
+        return False
+    if explicit in ("1", "true", "yes"):
+        try:
+            return database.is_database_available()
+        except Exception:
+            return False
+    if database.is_postgres_configured():
+        try:
+            return database.is_database_available()
+        except Exception:
+            return False
+    return False
+
+def _format_candidate_from_db(row: Dict[str, Any], include_timeline: bool = True) -> Dict[str, Any]:
+    """Formats a PostgreSQL candidates row into standard application dictionary."""
+    if not row:
+        return {}
+    cand = dict(row)
+    for score_field in ("python_score", "experience_score", "uni_tier_score", "final_rank_score", "python_experience_years"):
+        val = cand.get(score_field)
+        cand[score_field] = float(val) if val is not None else 0.0
+
+    cand["scores"] = database.from_json(cand.get("scores")) or {}
+    cand["skills"] = database.from_json(cand.get("skills")) or []
+    cand["attachments"] = database.from_json(cand.get("attachments")) or []
+    cand["interview"] = database.from_json(cand.get("interview")) or {}
+    cand["interview_rounds"] = database.from_json(cand.get("interview_rounds")) or []
+
+    # Evidence fields unpacked from scores dict if available
+    scores_dict = cand["scores"] if isinstance(cand["scores"], dict) else {}
+    for k in ("python_evidence", "evidence_quote", "uni_evidence", "experience_evidence"):
+        if k in scores_dict and k not in cand:
+            cand[k] = scores_dict[k]
+
+    for ts_col in ("created_at", "updated_at"):
+        val = cand.get(ts_col)
+        if isinstance(val, (datetime, date)):
+            cand[ts_col] = val.isoformat()
+
+    # Unpack any additional parsed_data attributes
+    parsed = database.from_json(cand.pop("parsed_data", None)) or {}
+    if isinstance(parsed, dict):
+        for k, v in parsed.items():
+            if k not in cand:
+                cand[k] = v
+
+    if include_timeline:
+        cand["timeline"] = _get_candidate_timeline_from_db(cand["id"], auto_generate=False)
+    else:
+        cand["timeline"] = []
+
+    return cand
+
+def _format_timeline_from_db(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Formats a PostgreSQL candidate_timeline row into a timeline event dictionary."""
+    if not row:
+        return {}
+    event = dict(row)
+    event["metadata"] = database.from_json(event.get("metadata")) or {}
+    event["attachments"] = database.from_json(event.get("attachments")) or []
+    for ts_col in ("timestamp", "created_at"):
+        val = event.get(ts_col)
+        if isinstance(val, (datetime, date)):
+            event[ts_col] = val.isoformat()
+    return event
+
+def _save_candidate_to_db(candidate_data: Dict) -> str:
+    """Inserts or updates a candidate CV in the PostgreSQL database."""
+    cand_id = candidate_data.get("id") or str(uuid.uuid4())
+    candidate_data["id"] = cand_id
+    created_at = candidate_data.get("created_at") or datetime.now().isoformat()
+    candidate_data["created_at"] = created_at
+    status = candidate_data.get("status", "pending")
+    stage = candidate_data.get("stage", "Screening")
+
+    raw_resume = candidate_data.get("raw_resume_text") or candidate_data.get("resume_text") or ""
+    skills = candidate_data.get("skills") or []
+    if isinstance(skills, str):
+        skills = [s.strip() for s in skills.split(",") if s.strip()]
+
+    scores = candidate_data.get("scores")
+    if not scores or not isinstance(scores, dict):
+        scores = {
+            "python_score": float(candidate_data.get("python_score") or 0.0),
+            "python_evidence": candidate_data.get("python_evidence") or candidate_data.get("evidence_quote") or "",
+            "experience_score": float(candidate_data.get("experience_score") or 0.0),
+            "experience_evidence": candidate_data.get("experience_evidence") or "",
+            "uni_tier_score": float(candidate_data.get("uni_tier_score") or 0.0),
+            "uni_evidence": candidate_data.get("uni_evidence") or "",
+            "python_experience_years": float(candidate_data.get("python_experience_years") or 0.0),
+            "final_rank_score": float(candidate_data.get("final_rank_score") or 0.0),
+        }
+
+    known_keys = {
+        "id", "position_id", "user_id", "employee_id", "name", "email", "phone", "university",
+        "status", "stage", "job_role", "position", "raw_resume_text", "resume_text", "source_file",
+        "analysis_method", "python_score", "experience_score", "uni_tier_score", "final_rank_score",
+        "python_experience_years", "scores", "skills", "parsed_data", "attachments", "interview",
+        "interview_rounds", "created_at", "updated_at", "timeline", "python_evidence", "evidence_quote",
+        "uni_evidence", "experience_evidence"
+    }
+    extra_data = {k: v for k, v in candidate_data.items() if k not in known_keys}
+    parsed_data = candidate_data.get("parsed_data") or {}
+    if extra_data:
+        parsed_data = dict(parsed_data)
+        parsed_data.update(extra_data)
+
+    attachments = candidate_data.get("attachments") or []
+    interview = candidate_data.get("interview") or {}
+    interview_rounds = candidate_data.get("interview_rounds") or []
+
+    query = """
+        INSERT INTO candidates (
+            id, position_id, user_id, employee_id, name, email, phone, university,
+            status, stage, job_role, position, raw_resume_text, source_file, analysis_method,
+            python_score, experience_score, uni_tier_score, final_rank_score, python_experience_years,
+            scores, skills, parsed_data, attachments, interview, interview_rounds,
+            created_at, updated_at
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s,
+            %s, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            position_id = EXCLUDED.position_id,
+            user_id = EXCLUDED.user_id,
+            employee_id = EXCLUDED.employee_id,
+            name = EXCLUDED.name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            university = EXCLUDED.university,
+            status = EXCLUDED.status,
+            stage = EXCLUDED.stage,
+            job_role = EXCLUDED.job_role,
+            position = EXCLUDED.position,
+            raw_resume_text = COALESCE(EXCLUDED.raw_resume_text, candidates.raw_resume_text),
+            source_file = COALESCE(EXCLUDED.source_file, candidates.source_file),
+            analysis_method = EXCLUDED.analysis_method,
+            python_score = EXCLUDED.python_score,
+            experience_score = EXCLUDED.experience_score,
+            uni_tier_score = EXCLUDED.uni_tier_score,
+            final_rank_score = EXCLUDED.final_rank_score,
+            python_experience_years = EXCLUDED.python_experience_years,
+            scores = EXCLUDED.scores,
+            skills = EXCLUDED.skills,
+            parsed_data = EXCLUDED.parsed_data,
+            attachments = EXCLUDED.attachments,
+            interview = EXCLUDED.interview,
+            interview_rounds = EXCLUDED.interview_rounds,
+            updated_at = CURRENT_TIMESTAMP;
+    """
+    database.execute_query(query, (
+        cand_id,
+        candidate_data.get("position_id"),
+        candidate_data.get("user_id"),
+        candidate_data.get("employee_id"),
+        candidate_data.get("name", "Unnamed Candidate"),
+        candidate_data.get("email"),
+        candidate_data.get("phone"),
+        candidate_data.get("university"),
+        status,
+        stage,
+        candidate_data.get("job_role"),
+        candidate_data.get("position"),
+        raw_resume,
+        candidate_data.get("source_file"),
+        candidate_data.get("analysis_method", "AI Analysis"),
+        float(candidate_data.get("python_score") or 0.0),
+        float(candidate_data.get("experience_score") or 0.0),
+        float(candidate_data.get("uni_tier_score") or 0.0),
+        float(candidate_data.get("final_rank_score") or 0.0),
+        float(candidate_data.get("python_experience_years") or 0.0),
+        database.to_json(scores),
+        database.to_json(skills),
+        database.to_json(parsed_data),
+        database.to_json(attachments),
+        database.to_json(interview),
+        database.to_json(interview_rounds),
+        created_at
+    ))
+
+    # Save any timeline events provided in the candidate dict
+    for event in candidate_data.get("timeline", []):
+        event_id = event.get("id") or str(uuid.uuid4())
+        event_ts = event.get("timestamp") or datetime.now().isoformat()
+        event_meta = event.get("metadata") or {}
+        event_att = event.get("attachments") or event_meta.get("attachments") or []
+        t_query = """
+            INSERT INTO candidate_timeline (
+                id, candidate_id, sender, sender_name, type, content, metadata, attachments, timestamp, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET
+                sender = EXCLUDED.sender,
+                sender_name = EXCLUDED.sender_name,
+                type = EXCLUDED.type,
+                content = EXCLUDED.content,
+                metadata = EXCLUDED.metadata,
+                attachments = EXCLUDED.attachments,
+                timestamp = EXCLUDED.timestamp;
+        """
+        database.execute_query(t_query, (
+            event_id,
+            cand_id,
+            event.get("sender", "system"),
+            event.get("sender_name", "System"),
+            event.get("type", "system"),
+            event.get("content", ""),
+            database.to_json(event_meta),
+            database.to_json(event_att),
+            event_ts,
+            event_ts
+        ))
+
+    return cand_id
+
+def _get_candidate_timeline_from_db(candidate_id: str, auto_generate: bool = True) -> List[Dict]:
+    """Retrieves timeline events from candidate_timeline table, auto-generating history if empty."""
+    rows = database.execute_query(
+        "SELECT * FROM candidate_timeline WHERE candidate_id = %s ORDER BY timestamp ASC, created_at ASC;",
+        (candidate_id,),
+        fetch="all"
+    )
+    if rows:
+        return [_format_timeline_from_db(r) for r in rows]
+
+    if not auto_generate:
+        return []
+
+    # Synthesize timeline from candidate row if empty
+    cand_row = database.execute_query("SELECT * FROM candidates WHERE id = %s;", (candidate_id,), fetch="one")
+    if not cand_row:
+        return []
+    candidate = _format_candidate_from_db(cand_row, include_timeline=False)
+    synthesized = _synthesize_candidate_timeline(candidate)
+    for event in synthesized:
+        database.execute_query(
+            """
+            INSERT INTO candidate_timeline (
+                id, candidate_id, sender, sender_name, type, content, metadata, attachments, timestamp, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO NOTHING;
+            """,
+            (
+                event["id"],
+                candidate_id,
+                event["sender"],
+                event["sender_name"],
+                event["type"],
+                event["content"],
+                database.to_json(event.get("metadata") or {}),
+                database.to_json(event.get("attachments") or []),
+                event["timestamp"],
+                event["timestamp"]
+            )
+        )
+    return synthesized
+
+def _synthesize_candidate_timeline(candidate: Dict) -> List[Dict]:
+    """Synthesizes initial timeline events from existing candidate application data."""
+    synthesized = []
+    created_at = candidate.get("created_at") or datetime.now().isoformat()
+    pos = get_position(candidate.get("position_id"))
+    pos_title = pos.get("title", "Job Position") if pos else "Job Position"
+    cand_name = candidate.get("name", "Candidate")
+
+    # 1. Application submission
+    synthesized.append({
+        "id": str(uuid.uuid4()),
+        "sender": "candidate",
+        "sender_name": cand_name,
+        "type": "system",
+        "content": f"Submitted resume application for {pos_title}.",
+        "metadata": {"source_file": candidate.get("source_file")},
+        "attachments": candidate.get("attachments") or [],
+        "timestamp": created_at
+    })
+
+    # 2. AI Screening result
+    synthesized.append({
+        "id": str(uuid.uuid4()),
+        "sender": "system",
+        "sender_name": "TalentAI Screening Engine",
+        "type": "system",
+        "content": f"AI Resume screening completed with final rank score {candidate.get('final_rank_score', 0)}/10 (Python: {candidate.get('python_score', 0)}, Exp: {candidate.get('experience_score', 0)}, Uni: {candidate.get('uni_tier_score', 0)}).",
+        "metadata": {"score": candidate.get("final_rank_score")},
+        "attachments": [],
+        "timestamp": created_at
+    })
+
+    # 3. Interviews history
+    intv = candidate.get("interview")
+    if intv and isinstance(intv, dict):
+        for h in intv.get("history", []):
+            act = h.get("action")
+            ts = h.get("timestamp", created_at)
+            if act == "scheduled_by_hr":
+                synthesized.append({
+                    "id": str(uuid.uuid4()),
+                    "sender": "hr",
+                    "sender_name": "HR Admin",
+                    "type": "interview",
+                    "content": f"Scheduled interview for {h.get('date')} at {h.get('time')}." + (f" Note: {h.get('note')}" if h.get("note") else ""),
+                    "metadata": h,
+                    "attachments": [],
+                    "timestamp": ts
+                })
+            elif act == "confirmed_by_candidate":
+                synthesized.append({
+                    "id": str(uuid.uuid4()),
+                    "sender": "candidate",
+                    "sender_name": cand_name,
+                    "type": "message",
+                    "content": "Confirmed attendance for the scheduled interview.",
+                    "metadata": h,
+                    "attachments": [],
+                    "timestamp": ts
+                })
+            elif act == "reschedule_requested":
+                synthesized.append({
+                    "id": str(uuid.uuid4()),
+                    "sender": "candidate",
+                    "sender_name": cand_name,
+                    "type": "reschedule",
+                    "content": f"Requested reschedule to {h.get('proposed_date')} at {h.get('proposed_time')}." + (f" Reason: {h.get('reason')}" if h.get("reason") else ""),
+                    "metadata": h,
+                    "attachments": [],
+                    "timestamp": ts
+                })
+            elif act == "reschedule_approved_by_hr":
+                synthesized.append({
+                    "id": str(uuid.uuid4()),
+                    "sender": "hr",
+                    "sender_name": "HR Admin",
+                    "type": "reschedule",
+                    "content": f"Approved candidate's reschedule request for {h.get('date')} at {h.get('time')}." + (f" Note: {h.get('note')}" if h.get("note") else ""),
+                    "metadata": h,
+                    "attachments": [],
+                    "timestamp": ts
+                })
+            elif act == "declined_by_candidate":
+                synthesized.append({
+                    "id": str(uuid.uuid4()),
+                    "sender": "candidate",
+                    "sender_name": cand_name,
+                    "type": "message",
+                    "content": "Declined interview invitation." + (f" Reason: {h.get('reason')}" if h.get("reason") else ""),
+                    "metadata": h,
+                    "attachments": [],
+                    "timestamp": ts
+                })
+
+    return synthesized
 
 def _default_data() -> Dict:
     return {
@@ -300,6 +672,14 @@ def _migrate_rbac_and_leave_data(data: Dict) -> bool:
 
 def save_position(title: str, description: str) -> str:
     """Creates a new position and returns its ID"""
+    if _use_postgres():
+        pos_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        database.execute_query(
+            "INSERT INTO positions (id, title, description, created_at, updated_at) VALUES (%s, %s, %s, %s, %s);",
+            (pos_id, title, description, now, now)
+        )
+        return pos_id
     data = _load_data()
     position_id = str(uuid.uuid4())
     position = {
@@ -313,17 +693,46 @@ def save_position(title: str, description: str) -> str:
 
 def get_all_positions() -> List[Dict]:
     """Returns all positions"""
+    if _use_postgres():
+        rows = database.execute_query("SELECT * FROM positions ORDER BY created_at ASC;", fetch="all")
+        res = []
+        for r in rows:
+            d = dict(r)
+            if isinstance(d.get("created_at"), (datetime, date)):
+                d["created_at"] = d["created_at"].isoformat()
+            if isinstance(d.get("updated_at"), (datetime, date)):
+                d["updated_at"] = d["updated_at"].isoformat()
+            res.append(d)
+        return res
     data = _load_data()
     return data.get("positions", [])
 
 def get_position(position_id: str) -> Optional[Dict]:
     """Returns a single position by ID"""
+    if not position_id:
+        return None
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM positions WHERE id = %s;", (position_id,), fetch="one")
+        if not row:
+            return None
+        d = dict(row)
+        if isinstance(d.get("created_at"), (datetime, date)):
+            d["created_at"] = d["created_at"].isoformat()
+        if isinstance(d.get("updated_at"), (datetime, date)):
+            d["updated_at"] = d["updated_at"].isoformat()
+        return d
     data = _load_data()
     positions = data.get("positions", [])
     return next((p for p in positions if p["id"] == position_id), None)
 
 def update_position(position_id: str, title: str, description: str):
     """Updates an existing position"""
+    if _use_postgres():
+        database.execute_query(
+            "UPDATE positions SET title = %s, description = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
+            (title, description, position_id)
+        )
+        return
     data = _load_data()
     for p in data["positions"]:
         if p["id"] == position_id:
@@ -334,6 +743,10 @@ def update_position(position_id: str, title: str, description: str):
 
 def delete_position(position_id: str):
     """Deletes a position and all its associated candidates"""
+    if _use_postgres():
+        database.execute_query("DELETE FROM candidates WHERE position_id = %s;", (position_id,))
+        database.execute_query("DELETE FROM positions WHERE id = %s;", (position_id,))
+        return
     data = _load_data()
     # Remove position
     data["positions"] = [p for p in data["positions"] if p["id"] != position_id]
@@ -343,17 +756,34 @@ def delete_position(position_id: str):
 
 def get_candidates_by_position(position_id: str) -> List[Dict]:
     """Returns all candidates for a specific position"""
+    if _use_postgres():
+        rows = database.execute_query(
+            "SELECT * FROM candidates WHERE position_id = %s ORDER BY final_rank_score DESC, created_at DESC;",
+            (position_id,),
+            fetch="all"
+        )
+        return [_format_candidate_from_db(r) for r in rows]
     data = _load_data()
     return [c for c in data.get("candidates", []) if c.get("position_id") == position_id]
 
 # ============ Legacy Job Description (for migration) ============
 
 def save_job_description(text: str):
+    if _use_postgres():
+        database.execute_query(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES ('job_description_text', %s, CURRENT_TIMESTAMP) "
+            "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;",
+            (text,)
+        )
+        return
     data = _load_data()
     data["job_description_text"] = text
     _save_data(data)
 
 def get_job_description() -> str:
+    if _use_postgres():
+        row = database.execute_query("SELECT value FROM app_settings WHERE key = 'job_description_text';", fetch="one")
+        return row["value"] if row and row.get("value") else ""
     data = _load_data()
     return data.get("job_description_text", "")
 
@@ -361,7 +791,8 @@ def get_job_description() -> str:
 
 def save_candidate(candidate_data: Dict) -> str:
     """Saves a candidate and returns their ID"""
-    from datetime import datetime
+    if _use_postgres():
+        return _save_candidate_to_db(candidate_data)
     
     data = _load_data()
     
@@ -391,6 +822,12 @@ def save_candidate(candidate_data: Dict) -> str:
     return candidate_data["id"]
 
 def get_all_candidates() -> List[Dict]:
+    if _use_postgres():
+        rows = database.execute_query(
+            "SELECT * FROM candidates ORDER BY final_rank_score DESC, created_at DESC;",
+            fetch="all"
+        )
+        return [_format_candidate_from_db(r) for r in rows]
     data = _load_data()
     return data.get("candidates", [])
 
@@ -398,12 +835,22 @@ get_candidates = get_all_candidates
 get_positions = get_all_positions
 
 def get_candidate(candidate_id: str) -> Optional[Dict]:
+    if not candidate_id:
+        return None
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM candidates WHERE id = %s;", (candidate_id,), fetch="one")
+        if not row:
+            return None
+        return _format_candidate_from_db(row, include_timeline=True)
     data = _load_data()
     candidates = data.get("candidates", [])
     return next((c for c in candidates if c["id"] == candidate_id), None)
 
 def delete_candidate(candidate_id: str):
     """Deletes a candidate by ID"""
+    if _use_postgres():
+        database.execute_query("DELETE FROM candidates WHERE id = %s;", (candidate_id,))
+        return
     data = _load_data()
     candidates = data.get("candidates", [])
     data["candidates"] = [c for c in candidates if c["id"] != candidate_id]
@@ -411,6 +858,12 @@ def delete_candidate(candidate_id: str):
 
 def update_candidate_status(candidate_id: str, status: str):
     """Updates the status of a candidate"""
+    if _use_postgres():
+        database.execute_query(
+            "UPDATE candidates SET status = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
+            (status, candidate_id)
+        )
+        return
     data = _load_data()
     candidates = data.get("candidates", [])
     for c in candidates:
@@ -421,11 +874,8 @@ def update_candidate_status(candidate_id: str, status: str):
 
 def get_overview_stats() -> Dict:
     """Returns aggregated stats for the Overview Dashboard"""
-    from datetime import datetime, timedelta
-    
-    data = _load_data()
-    candidates = data.get("candidates", [])
-    positions = data.get("positions", [])
+    candidates = get_all_candidates()
+    positions = get_all_positions()
     
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -456,7 +906,10 @@ def get_overview_stats() -> Dict:
         created_at_str = c.get("created_at")
         if created_at_str:
             try:
-                created_at = datetime.fromisoformat(created_at_str)
+                if isinstance(created_at_str, str):
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00")).replace(tzinfo=None)
+                else:
+                    created_at = created_at_str
                 if created_at >= today_start:
                     today_applicants += 1
                 if status == "accepted" and created_at >= month_start:
@@ -483,7 +936,18 @@ def get_overview_stats() -> Dict:
 
 def create_user(username, password, name, email):
     """Creates a new user"""
-    from datetime import datetime
+    if _use_postgres():
+        existing = database.execute_query("SELECT id FROM users WHERE username = %s;", (username,), fetch="one")
+        if existing:
+            return None
+        user_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        database.execute_query(
+            "INSERT INTO users (id, username, password, name, email, created_at, updated_at) VALUES (%s, %s, %s, %s, %s, %s, %s);",
+            (user_id, username, password, name, email, now, now)
+        )
+        return user_id
+
     data = _load_data()
     # Check if username exists
     if any(u['username'] == username for u in data.get('users', [])):
@@ -493,7 +957,7 @@ def create_user(username, password, name, email):
     user = {
         "id": user_id,
         "username": username,
-        "password": password, # In production, hash this!
+        "password": password,
         "name": name,
         "email": email,
         "created_at": datetime.now().isoformat()
@@ -504,16 +968,45 @@ def create_user(username, password, name, email):
 
 def get_user_by_username(username):
     """Returns user by username"""
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM users WHERE username = %s;", (username,), fetch="one")
+        if not row:
+            return None
+        d = dict(row)
+        for ts_col in ("created_at", "updated_at"):
+            if isinstance(d.get(ts_col), (datetime, date)):
+                d[ts_col] = d[ts_col].isoformat()
+        return d
     data = _load_data()
     return next((u for u in data.get('users', []) if u['username'] == username), None)
 
 def get_user_by_id(user_id):
     """Returns user by ID"""
+    if not user_id:
+        return None
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM users WHERE id = %s;", (user_id,), fetch="one")
+        if not row:
+            return None
+        d = dict(row)
+        for ts_col in ("created_at", "updated_at"):
+            if isinstance(d.get(ts_col), (datetime, date)):
+                d[ts_col] = d[ts_col].isoformat()
+        return d
     data = _load_data()
     return next((u for u in data.get('users', []) if u['id'] == user_id), None)
 
 def get_candidates_by_user(user_id):
     """Returns all candidates/applications for a specific user"""
+    if not user_id:
+        return []
+    if _use_postgres():
+        rows = database.execute_query(
+            "SELECT * FROM candidates WHERE user_id = %s ORDER BY created_at DESC;",
+            (user_id,),
+            fetch="all"
+        )
+        return [_format_candidate_from_db(r) for r in rows]
     data = _load_data()
     return [c for c in data.get('candidates', []) if c.get('user_id') == user_id]
 
@@ -522,6 +1015,68 @@ def get_candidates_by_user(user_id):
 def schedule_interview(candidate_id: str, date: str, time: str, meeting_link: str = "", hr_note: str = "", round_title: str = "Interview Round") -> Optional[Dict]:
     """Sets candidate status to accepted and attaches scheduled interview details."""
     from datetime import datetime
+    now_iso = datetime.now().isoformat()
+
+    if _use_postgres():
+        candidate = get_candidate(candidate_id)
+        if not candidate:
+            return None
+        candidate["status"] = "accepted"
+        interview = {
+            "status": "pending_candidate_response",
+            "date": date,
+            "time": time,
+            "round_title": round_title,
+            "meeting_link": meeting_link,
+            "hr_note": hr_note,
+            "scheduled_at": now_iso,
+            "reschedule_request": None,
+            "history": candidate.get("interview", {}).get("history", []) if isinstance(candidate.get("interview"), dict) else []
+        }
+        interview["history"].append({
+            "action": "scheduled_by_hr",
+            "date": date,
+            "time": time,
+            "timestamp": now_iso,
+            "note": hr_note
+        })
+        candidate["interview"] = interview
+        if "interview_rounds" not in candidate or not isinstance(candidate["interview_rounds"], list):
+            candidate["interview_rounds"] = []
+        candidate["interview_rounds"].append({
+            "round_title": round_title,
+            "date": date,
+            "time": time,
+            "meeting_link": meeting_link,
+            "hr_note": hr_note,
+            "status": "pending_candidate_response",
+            "scheduled_at": now_iso
+        })
+        candidate["stage"] = round_title
+        save_candidate(candidate)
+
+        add_candidate_timeline_event(
+            candidate_id=candidate_id,
+            sender="hr",
+            sender_name="HR Admin",
+            event_type="interview",
+            content=f"Scheduled {round_title} for {date} at {time}." + (f" Meeting link: {meeting_link}" if meeting_link else ""),
+            metadata={"date": date, "time": time, "round_title": round_title, "meeting_link": meeting_link, "hr_note": hr_note}
+        )
+
+        recip_id = candidate.get("user_id") or candidate["id"]
+        pos = get_position(candidate.get("position_id"))
+        pos_title = pos.get("title") if pos else "Position"
+        add_notification(
+            recipient_type="candidate",
+            recipient_id=recip_id,
+            title="🎉 Interview Invitation",
+            message=f"You have been invited for an interview for {pos_title} on {date} at {time}.",
+            link="/applicant_dashboard" if candidate.get("user_id") else "/application_status",
+            notification_type="interview_invite"
+        )
+        return candidate
+
     data = _load_data()
     candidates = data.get("candidates", [])
     candidate = next((c for c in candidates if c["id"] == candidate_id), None)
@@ -529,10 +1084,9 @@ def schedule_interview(candidate_id: str, date: str, time: str, meeting_link: st
         return None
 
     candidate["status"] = "accepted"
-    now_iso = datetime.now().isoformat()
     
     interview = {
-        "status": "pending_candidate_response",  # pending_candidate_response, confirmed, declined, reschedule_requested
+        "status": "pending_candidate_response",
         "date": date,
         "time": time,
         "round_title": round_title,
@@ -595,13 +1149,118 @@ def candidate_respond_interview(candidate_id: str, action: str, proposed_date: s
     action: 'accept' | 'decline' | 'reschedule'
     """
     from datetime import datetime
+    now_iso = datetime.now().isoformat()
+
+    if _use_postgres():
+        candidate = get_candidate(candidate_id)
+        if not candidate or "interview" not in candidate:
+            return None
+
+        interview = candidate["interview"]
+        pos = get_position(candidate.get("position_id"))
+        pos_title = pos.get("title") if pos else "Position"
+        cand_name = candidate.get("name", "Candidate")
+
+        if action in ["accept", "confirm"]:
+            interview["status"] = "confirmed"
+            if "history" not in interview or not isinstance(interview["history"], list):
+                interview["history"] = []
+            interview["history"].append({
+                "action": "confirmed_by_candidate",
+                "timestamp": now_iso
+            })
+            if "interview_rounds" in candidate and candidate["interview_rounds"]:
+                candidate["interview_rounds"][-1]["status"] = "confirmed"
+            save_candidate(candidate)
+            add_candidate_timeline_event(
+                candidate_id=candidate_id,
+                sender="candidate",
+                sender_name=cand_name,
+                event_type="message",
+                content=f"Accepted and confirmed interview slot for {interview.get('date')} at {interview.get('time')}."
+            )
+            add_notification(
+                recipient_type="hr",
+                recipient_id="hr_admin",
+                title="✅ Interview Confirmed",
+                message=f"{cand_name} confirmed their interview for {pos_title} ({interview.get('date')} at {interview.get('time')}).",
+                link=f"/candidate?id={candidate_id}",
+                notification_type="confirmed"
+            )
+
+        elif action in ["decline", "reject"]:
+            interview["status"] = "declined"
+            if "history" not in interview or not isinstance(interview["history"], list):
+                interview["history"] = []
+            interview["history"].append({
+                "action": "declined_by_candidate",
+                "reason": reason,
+                "timestamp": now_iso
+            })
+            if "interview_rounds" in candidate and candidate["interview_rounds"]:
+                candidate["interview_rounds"][-1]["status"] = "declined"
+            save_candidate(candidate)
+            add_candidate_timeline_event(
+                candidate_id=candidate_id,
+                sender="candidate",
+                sender_name=cand_name,
+                event_type="message",
+                content=f"Declined interview invitation." + (f" Reason: {reason}" if reason else "")
+            )
+            add_notification(
+                recipient_type="hr",
+                recipient_id="hr_admin",
+                title="❌ Interview Declined",
+                message=f"{cand_name} declined the interview for {pos_title}. Reason: {reason or 'No reason provided'}",
+                link=f"/candidate?id={candidate_id}",
+                notification_type="declined"
+            )
+
+        elif action == "reschedule":
+            interview["status"] = "reschedule_requested"
+            interview["reschedule_request"] = {
+                "proposed_date": proposed_date,
+                "proposed_time": proposed_time,
+                "reason": reason,
+                "requested_at": now_iso
+            }
+            if "history" not in interview or not isinstance(interview["history"], list):
+                interview["history"] = []
+            interview["history"].append({
+                "action": "reschedule_requested",
+                "proposed_date": proposed_date,
+                "proposed_time": proposed_time,
+                "reason": reason,
+                "timestamp": now_iso
+            })
+            if "interview_rounds" in candidate and candidate["interview_rounds"]:
+                candidate["interview_rounds"][-1]["status"] = "reschedule_requested"
+            save_candidate(candidate)
+            add_candidate_timeline_event(
+                candidate_id=candidate_id,
+                sender="candidate",
+                sender_name=cand_name,
+                event_type="reschedule",
+                content=f"Requested to reschedule to {proposed_date} at {proposed_time}." + (f" Reason: {reason}" if reason else ""),
+                metadata={"proposed_date": proposed_date, "proposed_time": proposed_time, "reason": reason}
+            )
+            add_notification(
+                recipient_type="hr",
+                recipient_id="hr_admin",
+                title="⚠️ Reschedule Requested",
+                message=f"{cand_name} requested to reschedule {pos_title} to {proposed_date} at {proposed_time}. Reason: {reason or 'N/A'}",
+                link=f"/candidate?id={candidate_id}",
+                notification_type="reschedule_requested"
+            )
+
+        return candidate
+
     data = _load_data()
     candidates = data.get("candidates", [])
     candidate = next((c for c in candidates if c["id"] == candidate_id), None)
     if not candidate or "interview" not in candidate:
         return None
 
-    now_iso = datetime.now().isoformat()
     interview = candidate["interview"]
     pos = get_position(candidate.get("position_id"))
     pos_title = pos.get("title") if pos else "Position"
@@ -701,6 +1360,99 @@ def hr_resolve_reschedule(candidate_id: str, decision: str, new_date: str = None
     decision: 'approve' (accepts candidate's suggested slot) | 'counter' (proposes new slot)
     """
     from datetime import datetime
+    now_iso = datetime.now().isoformat()
+
+    if _use_postgres():
+        candidate = get_candidate(candidate_id)
+        if not candidate or "interview" not in candidate:
+            return None
+
+        interview = candidate["interview"]
+        pos = get_position(candidate.get("position_id"))
+        pos_title = pos.get("title") if pos else "Position"
+        recip_id = candidate.get("user_id") or candidate["id"]
+
+        if decision == "approve":
+            req = interview.get("reschedule_request") or {}
+            proposed_date = req.get("proposed_date", interview.get("date"))
+            proposed_time = req.get("proposed_time", interview.get("time"))
+            interview["date"] = proposed_date
+            interview["time"] = proposed_time
+            interview["status"] = "confirmed"
+            interview["reschedule_request"] = None
+            if "history" not in interview or not isinstance(interview["history"], list):
+                interview["history"] = []
+            interview["history"].append({
+                "action": "reschedule_approved_by_hr",
+                "date": proposed_date,
+                "time": proposed_time,
+                "note": hr_note,
+                "timestamp": now_iso
+            })
+            if "interview_rounds" in candidate and candidate["interview_rounds"]:
+                candidate["interview_rounds"][-1]["status"] = "confirmed"
+                candidate["interview_rounds"][-1]["date"] = proposed_date
+                candidate["interview_rounds"][-1]["time"] = proposed_time
+            save_candidate(candidate)
+
+            add_candidate_timeline_event(
+                candidate_id=candidate_id,
+                sender="hr",
+                sender_name="HR Admin",
+                event_type="reschedule",
+                content=f"Approved reschedule request for {proposed_date} at {proposed_time}." + (f" Note: {hr_note}" if hr_note else "")
+            )
+
+            add_notification(
+                recipient_type="candidate",
+                recipient_id=recip_id,
+                title="✅ Reschedule Approved",
+                message=f"Your proposed interview time for {pos_title} ({proposed_date} at {proposed_time}) has been approved!",
+                link="/applicant_dashboard" if candidate.get("user_id") else "/application_status",
+                notification_type="confirmed"
+            )
+
+        elif decision == "counter":
+            interview["date"] = new_date or interview.get("date")
+            interview["time"] = new_time or interview.get("time")
+            if hr_note:
+                interview["hr_note"] = hr_note
+            interview["status"] = "pending_candidate_response"
+            interview["reschedule_request"] = None
+            if "history" not in interview or not isinstance(interview["history"], list):
+                interview["history"] = []
+            interview["history"].append({
+                "action": "counter_schedule_by_hr",
+                "date": interview["date"],
+                "time": interview["time"],
+                "note": hr_note,
+                "timestamp": now_iso
+            })
+            if "interview_rounds" in candidate and candidate["interview_rounds"]:
+                candidate["interview_rounds"][-1]["status"] = "pending_candidate_response"
+                candidate["interview_rounds"][-1]["date"] = interview["date"]
+                candidate["interview_rounds"][-1]["time"] = interview["time"]
+            save_candidate(candidate)
+
+            add_candidate_timeline_event(
+                candidate_id=candidate_id,
+                sender="hr",
+                sender_name="HR Admin",
+                event_type="interview",
+                content=f"Proposed new interview slot: {new_date} at {new_time}." + (f" Note: {hr_note}" if hr_note else "")
+            )
+
+            add_notification(
+                recipient_type="candidate",
+                recipient_id=recip_id,
+                title="🔄 Updated Interview Time",
+                message=f"HR suggested a new interview slot for {pos_title}: {interview['date']} at {interview['time']}.",
+                link="/applicant_dashboard" if candidate.get("user_id") else "/application_status",
+                notification_type="interview_invite"
+            )
+
+        return candidate
+
     data = _load_data()
     candidates = data.get("candidates", [])
     candidate = next((c for c in candidates if c["id"] == candidate_id), None)
@@ -708,7 +1460,6 @@ def hr_resolve_reschedule(candidate_id: str, decision: str, new_date: str = None
         return None
 
     interview = candidate["interview"]
-    now_iso = datetime.now().isoformat()
     pos = get_position(candidate.get("position_id"))
     pos_title = pos.get("title") if pos else "Position"
     recip_id = candidate.get("user_id") or candidate["id"]
@@ -795,6 +1546,45 @@ def hr_resolve_reschedule(candidate_id: str, decision: str, new_date: str = None
 def add_candidate_timeline_event(candidate_id: str, sender: str, sender_name: str, event_type: str, content: str, metadata: dict = None) -> Optional[Dict]:
     """Appends an event/message to the candidate's activity and chat timeline."""
     from datetime import datetime
+    now_iso = datetime.now().isoformat()
+
+    if _use_postgres():
+        cand = database.execute_query("SELECT id FROM candidates WHERE id = %s;", (candidate_id,), fetch="one")
+        if not cand:
+            return None
+        event_id = str(uuid.uuid4())
+        meta = metadata or {}
+        att = meta.get("attachments") or []
+        database.execute_query(
+            """
+            INSERT INTO candidate_timeline (
+                id, candidate_id, sender, sender_name, type, content, metadata, attachments, timestamp, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """,
+            (
+                event_id,
+                candidate_id,
+                sender,
+                sender_name,
+                event_type,
+                content,
+                database.to_json(meta),
+                database.to_json(att),
+                now_iso,
+                now_iso
+            )
+        )
+        return {
+            "id": event_id,
+            "sender": sender,
+            "sender_name": sender_name,
+            "type": event_type,
+            "content": content,
+            "metadata": meta,
+            "attachments": att,
+            "timestamp": now_iso
+        }
+
     data = _load_data()
     candidates = data.get("candidates", [])
     candidate = next((c for c in candidates if c["id"] == candidate_id), None)
@@ -806,12 +1596,12 @@ def add_candidate_timeline_event(candidate_id: str, sender: str, sender_name: st
 
     event = {
         "id": str(uuid.uuid4()),
-        "sender": sender,          # 'hr' | 'candidate' | 'system'
+        "sender": sender,
         "sender_name": sender_name,
-        "type": event_type,        # 'message' | 'internal_note' | 'interview' | 'reschedule' | 'stage_change' | 'system'
+        "type": event_type,
         "content": content,
         "metadata": metadata or {},
-        "timestamp": datetime.now().isoformat()
+        "timestamp": now_iso
     }
     candidate["timeline"].append(event)
     _save_data(data)
@@ -819,7 +1609,9 @@ def add_candidate_timeline_event(candidate_id: str, sender: str, sender_name: st
 
 def get_candidate_timeline(candidate_id: str) -> List[Dict]:
     """Retrieves full activity & message thread for a candidate, auto-generating history if empty."""
-    from datetime import datetime
+    if _use_postgres():
+        return _get_candidate_timeline_from_db(candidate_id, auto_generate=True)
+
     data = _load_data()
     candidates = data.get("candidates", [])
     candidate = next((c for c in candidates if c["id"] == candidate_id), None)
@@ -830,98 +1622,44 @@ def get_candidate_timeline(candidate_id: str) -> List[Dict]:
     if timeline is not None and len(timeline) > 0:
         return timeline
 
-    # Synthesize timeline from existing candidate data
-    synthesized = []
-    created_at = candidate.get("created_at", datetime.now().isoformat())
-    pos = get_position(candidate.get("position_id"))
-    pos_title = pos.get("title", "Job Position") if pos else "Job Position"
-    cand_name = candidate.get("name", "Candidate")
-
-    # 1. Application submission
-    synthesized.append({
-        "id": str(uuid.uuid4()),
-        "sender": "candidate",
-        "sender_name": cand_name,
-        "type": "system",
-        "content": f"Submitted resume application for {pos_title}.",
-        "metadata": {"source_file": candidate.get("source_file")},
-        "timestamp": created_at
-    })
-
-    # 2. AI Screening result
-    synthesized.append({
-        "id": str(uuid.uuid4()),
-        "sender": "system",
-        "sender_name": "TalentAI Screening Engine",
-        "type": "system",
-        "content": f"AI Resume screening completed with final rank score {candidate.get('final_rank_score', 0)}/10 (Python: {candidate.get('python_score', 0)}, Exp: {candidate.get('experience_score', 0)}, Uni: {candidate.get('uni_tier_score', 0)}).",
-        "metadata": {"score": candidate.get("final_rank_score")},
-        "timestamp": created_at
-    })
-
-    # 3. Interviews history
-    intv = candidate.get("interview")
-    if intv:
-        for h in intv.get("history", []):
-            act = h.get("action")
-            ts = h.get("timestamp", created_at)
-            if act == "scheduled_by_hr":
-                synthesized.append({
-                    "id": str(uuid.uuid4()),
-                    "sender": "hr",
-                    "sender_name": "HR Admin",
-                    "type": "interview",
-                    "content": f"Scheduled interview for {h.get('date')} at {h.get('time')}." + (f" Note: {h.get('note')}" if h.get("note") else ""),
-                    "metadata": h,
-                    "timestamp": ts
-                })
-            elif act == "confirmed_by_candidate":
-                synthesized.append({
-                    "id": str(uuid.uuid4()),
-                    "sender": "candidate",
-                    "sender_name": cand_name,
-                    "type": "message",
-                    "content": "Confirmed attendance for the scheduled interview.",
-                    "metadata": h,
-                    "timestamp": ts
-                })
-            elif act == "reschedule_requested":
-                synthesized.append({
-                    "id": str(uuid.uuid4()),
-                    "sender": "candidate",
-                    "sender_name": cand_name,
-                    "type": "reschedule",
-                    "content": f"Requested reschedule to {h.get('proposed_date')} at {h.get('proposed_time')}." + (f" Reason: {h.get('reason')}" if h.get("reason") else ""),
-                    "metadata": h,
-                    "timestamp": ts
-                })
-            elif act == "reschedule_approved_by_hr":
-                synthesized.append({
-                    "id": str(uuid.uuid4()),
-                    "sender": "hr",
-                    "sender_name": "HR Admin",
-                    "type": "reschedule",
-                    "content": f"Approved candidate's reschedule request for {h.get('date')} at {h.get('time')}." + (f" Note: {h.get('note')}" if h.get("note") else ""),
-                    "metadata": h,
-                    "timestamp": ts
-                })
-            elif act == "declined_by_candidate":
-                synthesized.append({
-                    "id": str(uuid.uuid4()),
-                    "sender": "candidate",
-                    "sender_name": cand_name,
-                    "type": "message",
-                    "content": "Declined interview invitation." + (f" Reason: {h.get('reason')}" if h.get("reason") else ""),
-                    "metadata": h,
-                    "timestamp": ts
-                })
-
+    synthesized = _synthesize_candidate_timeline(candidate)
     candidate["timeline"] = synthesized
     _save_data(data)
     return synthesized
 
 def update_candidate_stage(candidate_id: str, new_stage: str) -> Optional[Dict]:
     """Updates candidate hiring stage (e.g. Applied, Round 1, Round 2, Round 3, Offer, Onboarding)"""
+    if _use_postgres():
+        candidate = get_candidate(candidate_id)
+        if not candidate:
+            return None
+        old_stage = candidate.get("stage", "Applied")
+        candidate["stage"] = new_stage
+        database.execute_query(
+            "UPDATE candidates SET stage = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
+            (new_stage, candidate_id)
+        )
+        add_candidate_timeline_event(
+            candidate_id=candidate_id,
+            sender="hr",
+            sender_name="HR Admin",
+            event_type="stage_change",
+            content=f"Candidate stage advanced from '{old_stage}' to '{new_stage}'.",
+            metadata={"old_stage": old_stage, "new_stage": new_stage}
+        )
+        recip_id = candidate.get("user_id") or candidate["id"]
+        pos = get_position(candidate.get("position_id"))
+        pos_title = pos.get("title", "Position") if pos else "Position"
+        add_notification(
+            recipient_type="candidate",
+            recipient_id=recip_id,
+            title=f"🚀 Stage Update: {new_stage}",
+            message=f"Your application for {pos_title} has progressed to stage: {new_stage}.",
+            link="/applicant_dashboard" if candidate.get("user_id") else "/application_status",
+            notification_type="stage_change"
+        )
+        return candidate
+
     data = _load_data()
     candidates = data.get("candidates", [])
     candidate = next((c for c in candidates if c["id"] == candidate_id), None)
@@ -957,8 +1695,7 @@ def update_candidate_stage(candidate_id: str, new_stage: str) -> Optional[Dict]:
 
 def get_pending_reschedules() -> List[Dict]:
     """Returns all candidates who have requested an interview reschedule awaiting HR action."""
-    data = _load_data()
-    candidates = data.get("candidates", [])
+    candidates = get_all_candidates()
     results = []
     for c in candidates:
         if c.get("interview", {}).get("status") == "reschedule_requested":
@@ -971,7 +1708,19 @@ def get_pending_reschedules() -> List[Dict]:
 # ============ In-App Notification Functions ============
 
 def add_notification(recipient_type: str, recipient_id: str, title: str, message: str, link: str = "", notification_type: str = "info") -> str:
-    """Adds an in-app notification to data.json."""
+    """Adds an in-app notification to data.json or PostgreSQL."""
+    if _use_postgres():
+        notif_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        database.execute_query(
+            """
+            INSERT INTO notifications (id, recipient_type, recipient_id, title, message, link, notification_type, read, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, FALSE, %s);
+            """,
+            (notif_id, recipient_type, str(recipient_id), title, message, link, notification_type, now)
+        )
+        return notif_id
+
     data = _load_data()
     notif_id = _append_notification(
         data,
@@ -987,6 +1736,31 @@ def add_notification(recipient_type: str, recipient_id: str, title: str, message
 
 def get_notifications(recipient_type: str = None, recipient_id: str = None, unread_only: bool = False) -> List[Dict]:
     """Fetches notifications matching filter."""
+    if _use_postgres():
+        where_clauses = []
+        params = []
+        if recipient_type:
+            if recipient_type == "employee":
+                where_clauses.append("recipient_type IN ('employee', 'candidate')")
+            else:
+                where_clauses.append("recipient_type = %s")
+                params.append(recipient_type)
+        if recipient_id:
+            where_clauses.append("recipient_id = %s")
+            params.append(str(recipient_id))
+        if unread_only:
+            where_clauses.append("read = FALSE")
+        where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        query = f"SELECT * FROM notifications {where_str} ORDER BY created_at DESC;"
+        rows = database.execute_query(query, params if params else None, fetch="all")
+        results = []
+        for r in rows:
+            d = dict(r)
+            if isinstance(d.get("created_at"), (datetime, date)):
+                d["created_at"] = d["created_at"].isoformat()
+            results.append(d)
+        return results
+
     data = _load_data()
     notifs = data.get("notifications", [])
     results = []
@@ -1006,6 +1780,9 @@ def get_notifications(recipient_type: str = None, recipient_id: str = None, unre
 
 def mark_notification_read(notification_id: str):
     """Marks a single notification as read."""
+    if _use_postgres():
+        database.execute_query("UPDATE notifications SET read = TRUE WHERE id = %s;", (notification_id,))
+        return
     data = _load_data()
     for n in data.get("notifications", []):
         if n["id"] == notification_id:
@@ -1015,6 +1792,22 @@ def mark_notification_read(notification_id: str):
 
 def mark_all_notifications_read(recipient_type: str = None, recipient_id: str = None):
     """Marks all notifications for recipient as read."""
+    if _use_postgres():
+        where_clauses = []
+        params = []
+        if recipient_type:
+            if recipient_type == "employee":
+                where_clauses.append("recipient_type IN ('employee', 'candidate')")
+            else:
+                where_clauses.append("recipient_type = %s")
+                params.append(recipient_type)
+        if recipient_id:
+            where_clauses.append("recipient_id = %s")
+            params.append(str(recipient_id))
+        where_str = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+        query = f"UPDATE notifications SET read = TRUE {where_str};"
+        database.execute_query(query, params if params else None)
+        return
     data = _load_data()
     for n in data.get("notifications", []):
         if recipient_type:
@@ -1264,6 +2057,82 @@ def convert_candidate_to_employee(
     yearly_quota: int = DEFAULT_YEARLY_LEAVE_QUOTA,
 ) -> Optional[Dict]:
     """Shifts an onboarded candidate to the Current Employees directory."""
+    if _use_postgres():
+        candidate = get_candidate(candidate_id)
+        if not candidate:
+            return None
+        emp_id = _next_employee_id(get_all_employees())
+        cand_role = role or candidate.get("position") or "Software Engineer"
+        base_sal = 85000
+        allowances = 15000
+        deductions = 5000
+        if salary_data:
+            base_sal = float(salary_data.get("base", base_sal))
+            allowances = float(salary_data.get("allowances", allowances))
+            deductions = float(salary_data.get("deductions", deductions))
+
+        clean_role = access_role if access_role in VALID_ACCESS_ROLES else "employee"
+        clean_lead_id = _normalize_team_lead_assignment({"employees": get_all_employees()}, emp_id, clean_role, team_lead_id)
+        validated_quotas = _validate_leave_quotas(
+            {"casual": casual_quota, "yearly": yearly_quota}
+        )
+
+        employee_record = {
+            "id": emp_id,
+            "candidate_id": candidate_id,
+            "name": candidate.get("name", "New Employee"),
+            "email": candidate.get("email", ""),
+            "phone": candidate.get("phone", ""),
+            "role": cand_role,
+            "department": department or "Engineering",
+            "access_role": clean_role,
+            "team_lead_id": clean_lead_id,
+            "date_of_joining": date.today().isoformat(),
+            "status": "Active",
+            "salary": {
+                "base": base_sal,
+                "allowances": allowances,
+                "deductions": deductions,
+                "net": base_sal + allowances - deductions,
+                "currency": "$",
+                "payment_cycle": "Monthly",
+                "status": "Paid",
+                "last_paid_date": date.today().strftime("%Y-%m-01")
+            },
+            "leave_quota": validated_quotas,
+            "created_at": datetime.now().isoformat()
+        }
+
+        # Update candidate status
+        candidate["stage"] = "Finished"
+        candidate["status"] = "Hired"
+        candidate["employee_id"] = emp_id
+        save_candidate(candidate)
+
+        # Save employee
+        save_employee(employee_record)
+
+        # Add timeline event to candidate
+        add_candidate_timeline_event(
+            candidate_id=candidate_id,
+            sender="hr",
+            sender_name="HR Admin",
+            event_type="status_change",
+            content=f"Candidate was successfully onboarded and shifted to Current Employees with ID {emp_id} in {department}."
+        )
+
+        # Notification to HR
+        add_notification(
+            recipient_type="hr",
+            recipient_id="hr_admin",
+            title="Candidate Shifted to Employee!",
+            message=f"{candidate.get('name')} is now an active employee ({emp_id}) in {department}.",
+            link="/employees",
+            notification_type="success"
+        )
+
+        return employee_record
+
     data = _load_data()
     candidate = None
     for c in data.get("candidates", []):
