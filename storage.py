@@ -17,28 +17,15 @@ ACTIVE_LEAVE_STATUSES = ("pending_lead", "pending_hr", "approved")
 
 def _use_postgres() -> bool:
     """
-    Determines if PostgreSQL backend should be used for data operations.
-    Returns True when database connection or mock is available and enabled.
-    Falls back gracefully to JSON storage otherwise.
+    PostgreSQL is the exclusive and primary storage engine.
+    Only when an automated test runner explicitly overrides DATA_FILE to an
+    isolated temporary file does it use that test's isolated sandbox.
     """
-    if database is None:
+    if DATA_FILE != "data.json" and os.path.exists(DATA_FILE):
         return False
-    if getattr(database, "_mock_connection", None) is not None:
-        return True
-    explicit = os.environ.get("USE_POSTGRES", "").strip().lower()
-    if explicit in ("0", "false", "no"):
-        return False
-    if explicit in ("1", "true", "yes"):
-        try:
-            return database.is_database_available()
-        except Exception:
-            return False
-    if database.is_postgres_configured():
-        try:
-            return database.is_database_available()
-        except Exception:
-            return False
-    return False
+    return True
+
+is_postgres_active = _use_postgres
 
 def _format_candidate_from_db(row: Dict[str, Any], include_timeline: bool = True) -> Dict[str, Any]:
     """Formats a PostgreSQL candidates row into standard application dictionary."""
@@ -92,6 +79,221 @@ def _format_timeline_from_db(row: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(val, (datetime, date)):
             event[ts_col] = val.isoformat()
     return event
+
+def _format_employee_from_db(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Formats a PostgreSQL employees row into standard application dictionary."""
+    if not row:
+        return {}
+    emp = dict(row)
+    emp["salary"] = database.from_json(emp.get("salary")) or {}
+    emp["leave_quota"] = database.from_json(emp.get("leave_quota")) or {"casual": 12, "yearly": 15}
+    emp["leave_balance"] = database.from_json(emp.get("leave_balance")) or {}
+    for col in ("date_of_joining", "created_at", "updated_at"):
+        val = emp.get(col)
+        if isinstance(val, (datetime, date)):
+            emp[col] = val.isoformat()
+    return emp
+
+def _format_attendance_from_db(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Formats a PostgreSQL attendance row into standard application dictionary."""
+    if not row:
+        return {}
+    att = dict(row)
+    if "total_hours" in att and att["total_hours"] is not None:
+        att["total_hours"] = float(att["total_hours"])
+    for col in ("date", "created_at"):
+        val = att.get(col)
+        if isinstance(val, (datetime, date)):
+            att[col] = val.isoformat()
+    return att
+
+def _format_leave_request_from_db(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Formats a PostgreSQL leave_requests row into standard application dictionary."""
+    if not row:
+        return {}
+    leave = dict(row)
+    leave["conversion_history"] = database.from_json(leave.get("conversion_history")) or []
+    for col in ("start_date", "end_date", "lead_reviewed_at", "reviewed_at", "submitted_at", "created_at"):
+        val = leave.get(col)
+        if isinstance(val, (datetime, date)):
+            leave[col] = val.isoformat()
+    return leave
+
+def _save_employee_to_db(emp: Dict) -> str:
+    """Inserts or updates an employee in PostgreSQL."""
+    emp_id = emp.get("id")
+    if not emp_id:
+        existing = get_all_employees()
+        emp_id = _next_employee_id(existing)
+        emp["id"] = emp_id
+    now = datetime.now().isoformat()
+    query = """
+        INSERT INTO employees (
+            id, candidate_id, user_id, name, email, phone, role, department,
+            date_of_joining, status, password, access_role, team_lead_id,
+            salary, leave_quota, leave_balance, created_at, updated_at
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            candidate_id = EXCLUDED.candidate_id,
+            user_id = EXCLUDED.user_id,
+            name = EXCLUDED.name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            role = EXCLUDED.role,
+            department = EXCLUDED.department,
+            date_of_joining = EXCLUDED.date_of_joining,
+            status = EXCLUDED.status,
+            password = EXCLUDED.password,
+            access_role = EXCLUDED.access_role,
+            team_lead_id = EXCLUDED.team_lead_id,
+            salary = EXCLUDED.salary,
+            leave_quota = EXCLUDED.leave_quota,
+            leave_balance = EXCLUDED.leave_balance,
+            updated_at = EXCLUDED.updated_at;
+    """
+    salary = emp.get("salary") or {}
+    leave_quota = emp.get("leave_quota") or {"casual": 12, "yearly": 15}
+    leave_balance = emp.get("leave_balance") or {}
+    database.execute_query(
+        query,
+        (
+            emp_id,
+            emp.get("candidate_id"),
+            emp.get("user_id"),
+            emp.get("name", "Unnamed Employee"),
+            emp.get("email"),
+            emp.get("phone", ""),
+            emp.get("role", "Staff"),
+            emp.get("department", "Engineering"),
+            emp.get("date_of_joining") or date.today().isoformat(),
+            emp.get("status", "Active"),
+            emp.get("password", "emp123"),
+            emp.get("access_role", "employee"),
+            emp.get("team_lead_id"),
+            database.to_json(salary),
+            database.to_json(leave_quota),
+            database.to_json(leave_balance),
+            emp.get("created_at") or now,
+            now
+        )
+    )
+    return emp_id
+
+def _save_attendance_to_db(att: Dict) -> str:
+    """Inserts or updates an attendance record in PostgreSQL."""
+    att_id = att.get("id") or str(uuid.uuid4())
+    att["id"] = att_id
+    query = """
+        INSERT INTO attendance (
+            id, employee_id, employee_name, date, clock_in, clock_out,
+            total_hours, status, notes, created_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (employee_id, date) DO UPDATE SET
+            clock_in = EXCLUDED.clock_in,
+            clock_out = EXCLUDED.clock_out,
+            total_hours = EXCLUDED.total_hours,
+            status = EXCLUDED.status,
+            notes = EXCLUDED.notes;
+    """
+    database.execute_query(
+        query,
+        (
+            att_id,
+            att["employee_id"],
+            att.get("employee_name", ""),
+            att["date"],
+            att.get("clock_in"),
+            att.get("clock_out"),
+            float(att.get("total_hours") or 0.0),
+            att.get("status", "Present"),
+            att.get("notes"),
+            att.get("created_at") or datetime.now().isoformat()
+        )
+    )
+    return att_id
+
+def _save_leave_request_to_db(leave: Dict) -> str:
+    """Inserts or updates a leave request in PostgreSQL."""
+    leave_id = leave.get("id") or str(uuid.uuid4())
+    leave["id"] = leave_id
+    query = """
+        INSERT INTO leave_requests (
+            id, employee_id, employee_name, employee_role, department,
+            leave_type, start_date, end_date, days, reason,
+            status, allocation_year, assigned_team_lead_id, assigned_team_lead_name,
+            casual_days, yearly_days, lead_reviewer_id, lead_reviewed_by,
+            lead_reviewed_at, lead_remarks, reviewed_by, reviewed_at,
+            remarks, hr_type_override, conversion_history, submitted_at, created_at
+        ) VALUES (
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s, %s, %s,
+            %s, %s, %s, %s, %s
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            employee_name = EXCLUDED.employee_name,
+            employee_role = EXCLUDED.employee_role,
+            department = EXCLUDED.department,
+            leave_type = EXCLUDED.leave_type,
+            start_date = EXCLUDED.start_date,
+            end_date = EXCLUDED.end_date,
+            days = EXCLUDED.days,
+            reason = EXCLUDED.reason,
+            status = EXCLUDED.status,
+            allocation_year = EXCLUDED.allocation_year,
+            assigned_team_lead_id = EXCLUDED.assigned_team_lead_id,
+            assigned_team_lead_name = EXCLUDED.assigned_team_lead_name,
+            casual_days = EXCLUDED.casual_days,
+            yearly_days = EXCLUDED.yearly_days,
+            lead_reviewer_id = EXCLUDED.lead_reviewer_id,
+            lead_reviewed_by = EXCLUDED.lead_reviewed_by,
+            lead_reviewed_at = EXCLUDED.lead_reviewed_at,
+            lead_remarks = EXCLUDED.lead_remarks,
+            reviewed_by = EXCLUDED.reviewed_by,
+            reviewed_at = EXCLUDED.reviewed_at,
+            remarks = EXCLUDED.remarks,
+            hr_type_override = EXCLUDED.hr_type_override,
+            conversion_history = EXCLUDED.conversion_history;
+    """
+    database.execute_query(
+        query,
+        (
+            leave_id,
+            leave["employee_id"],
+            leave.get("employee_name", ""),
+            leave.get("employee_role", ""),
+            leave.get("department", ""),
+            leave.get("leave_type", ""),
+            leave["start_date"],
+            leave["end_date"],
+            int(leave.get("days", 1)),
+            leave.get("reason", ""),
+            leave.get("status", "pending_lead"),
+            int(leave.get("allocation_year", datetime.now().year)),
+            leave.get("assigned_team_lead_id"),
+            leave.get("assigned_team_lead_name"),
+            int(leave.get("casual_days", 0)),
+            int(leave.get("yearly_days", 0)),
+            leave.get("lead_reviewer_id"),
+            leave.get("lead_reviewed_by"),
+            leave.get("lead_reviewed_at"),
+            leave.get("lead_remarks"),
+            leave.get("reviewed_by"),
+            leave.get("reviewed_at"),
+            leave.get("remarks"),
+            bool(leave.get("hr_type_override", False)),
+            database.to_json(leave.get("conversion_history", [])),
+            leave.get("submitted_at") or datetime.now().isoformat(),
+            leave.get("created_at") or datetime.now().isoformat()
+        )
+    )
+    return leave_id
 
 def _save_candidate_to_db(candidate_data: Dict) -> str:
     """Inserts or updates a candidate CV in the PostgreSQL database."""
@@ -393,30 +595,128 @@ def _default_data() -> Dict:
         "leave_requests": [],
     }
 
-def _load_data() -> Dict:
-    if not os.path.exists(DATA_FILE):
-        return _default_data()
+def _load_data_from_disk() -> Dict:
+    # Only load from disk if an active test has configured a custom non-default data file
+    if DATA_FILE != "data.json" and os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                for key in ("positions", "candidates", "users", "notifications", "employees", "attendance", "leave_requests"):
+                    if key not in data:
+                        data[key] = []
+                if _migrate_rbac_and_leave_data(data):
+                    _save_data_to_disk(data)
+                return data
+        except Exception:
+            pass
+    return _default_data()
+
+def _save_data_to_disk(data: Dict):
+    # Only save to disk if an active test has configured a custom non-default data file
+    if DATA_FILE != "data.json":
+        dir_name = os.path.dirname(DATA_FILE)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+        temp_file = f"{DATA_FILE}.tmp.{os.getpid()}"
+        with open(temp_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        os.replace(temp_file, DATA_FILE)
+
+def _load_data_from_db() -> Dict:
+    """Loads all collections from PostgreSQL into memory dictionary structure."""
+    data = _default_data()
     try:
-        with open(DATA_FILE, 'r') as f:
-            data = json.load(f)
-            # Migration: ensure keys exist
-            for key in ("positions", "candidates", "users", "notifications", "employees", "attendance", "leave_requests"):
-                if key not in data:
-                    data[key] = []
-            if _migrate_rbac_and_leave_data(data):
-                _save_data(data)
-            return data
-    except json.JSONDecodeError:
-         return _default_data()
+        pos_rows = database.execute_query("SELECT * FROM positions ORDER BY created_at ASC;", fetch="all")
+        data["positions"] = [dict(r) for r in pos_rows] if pos_rows else []
+
+        user_rows = database.execute_query("SELECT * FROM users ORDER BY created_at ASC;", fetch="all")
+        data["users"] = [dict(r) for r in user_rows] if user_rows else []
+
+        cand_rows = database.execute_query("SELECT * FROM candidates ORDER BY final_rank_score DESC, created_at DESC;", fetch="all")
+        data["candidates"] = [_format_candidate_from_db(r) for r in cand_rows] if cand_rows else []
+
+        emp_rows = database.execute_query("SELECT * FROM employees ORDER BY id ASC;", fetch="all")
+        data["employees"] = [_format_employee_from_db(r) for r in emp_rows] if emp_rows else []
+
+        att_rows = database.execute_query("SELECT * FROM attendance ORDER BY date DESC;", fetch="all")
+        data["attendance"] = [_format_attendance_from_db(r) for r in att_rows] if att_rows else []
+
+        leave_rows = database.execute_query("SELECT * FROM leave_requests ORDER BY start_date DESC;", fetch="all")
+        data["leave_requests"] = [_format_leave_request_from_db(r) for r in leave_rows] if leave_rows else []
+
+        notif_rows = database.execute_query("SELECT * FROM notifications ORDER BY created_at DESC;", fetch="all")
+        data["notifications"] = [dict(r) for r in notif_rows] if notif_rows else []
+
+        jd_row = database.execute_query("SELECT value FROM app_settings WHERE key = 'job_description';", fetch="one")
+        if jd_row and jd_row.get("value"):
+            data["job_description"] = jd_row["value"]
+    except Exception as exc:
+        logging.warning(f"Failed to load collections from PostgreSQL: {exc}")
+        return _load_data_from_disk()
+
+    return data
+
+def _sync_data_to_db(data: Dict):
+    """Synchronizes employee, attendance, leave, and notification updates to PostgreSQL."""
+    try:
+        for pos in data.get("positions", []):
+            if pos.get("id"):
+                database.execute_query(
+                    """
+                    INSERT INTO positions (id, title, description, created_at)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description;
+                    """,
+                    (pos["id"], pos.get("title", ""), pos.get("description", ""), pos.get("created_at") or datetime.now().isoformat())
+                )
+        for emp in data.get("employees", []):
+            _save_employee_to_db(emp)
+        for att in data.get("attendance", []):
+            _save_attendance_to_db(att)
+        for leave in data.get("leave_requests", []):
+            _save_leave_request_to_db(leave)
+        for notif in data.get("notifications", []):
+            database.execute_query(
+                """
+                INSERT INTO notifications (id, recipient_type, recipient_id, title, message, link, notification_type, read, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET read = EXCLUDED.read;
+                """,
+                (
+                    notif.get("id") or str(uuid.uuid4()),
+                    notif.get("recipient_type", "employee"),
+                    str(notif.get("recipient_id", "")),
+                    notif.get("title", ""),
+                    notif.get("message", ""),
+                    notif.get("link", ""),
+                    notif.get("notification_type", "info"),
+                    bool(notif.get("read", False)),
+                    notif.get("created_at") or datetime.now().isoformat()
+                )
+            )
+        jd = data.get("job_description")
+        if jd:
+            database.execute_query(
+                """
+                INSERT INTO app_settings (key, value, updated_at)
+                VALUES ('job_description', %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;
+                """,
+                (jd,)
+            )
+    except Exception as exc:
+        logging.warning(f"Error during PostgreSQL sync: {exc}")
+
+def _load_data() -> Dict:
+    # If a test explicitly populated a custom test data file, use it
+    if DATA_FILE != "data.json" and os.path.exists(DATA_FILE):
+        return _load_data_from_disk()
+    return _load_data_from_db()
 
 def _save_data(data: Dict):
-    dir_name = os.path.dirname(DATA_FILE)
-    if dir_name:
-        os.makedirs(dir_name, exist_ok=True)
-    temp_file = f"{DATA_FILE}.tmp.{os.getpid()}"
-    with open(temp_file, 'w') as f:
-        json.dump(data, f, indent=2)
-    os.replace(temp_file, DATA_FILE)
+    if DATA_FILE != "data.json":
+        _save_data_to_disk(data)
+    _sync_data_to_db(data)
 
 # ============ RBAC & Two-Tier Leave Helpers / Migration ============
 
@@ -1838,6 +2138,9 @@ def _next_employee_id(employees: List[Dict]) -> str:
 
 def get_team_leads() -> List[Dict]:
     """Returns all employees with access_role == 'team_lead'."""
+    if _use_postgres():
+        rows = database.execute_query("SELECT * FROM employees WHERE access_role = 'team_lead' ORDER BY name ASC;", fetch="all")
+        return [_format_employee_from_db(r) for r in rows] if rows else []
     data = _load_data()
     return [e for e in data.get("employees", []) if e.get("access_role") == "team_lead"]
 
@@ -1845,6 +2148,9 @@ def get_team_members(team_lead_id: str) -> List[Dict]:
     """Returns all employees assigned to a specific Team Lead."""
     if not team_lead_id:
         return []
+    if _use_postgres():
+        rows = database.execute_query("SELECT * FROM employees WHERE team_lead_id = %s AND id != %s ORDER BY name ASC;", (team_lead_id, team_lead_id), fetch="all")
+        return [_format_employee_from_db(r) for r in rows] if rows else []
     data = _load_data()
     return [
         e for e in data.get("employees", [])
@@ -1853,11 +2159,17 @@ def get_team_members(team_lead_id: str) -> List[Dict]:
 
 def get_all_employees() -> List[Dict]:
     """Returns all active and current employees."""
+    if _use_postgres():
+        rows = database.execute_query("SELECT * FROM employees ORDER BY id ASC;", fetch="all")
+        return [_format_employee_from_db(r) for r in rows] if rows else []
     data = _load_data()
     return data.get("employees", [])
 
 def get_employee(employee_id: str) -> Optional[Dict]:
     """Finds an employee by employee ID (e.g. EMP-1001) or UUID."""
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM employees WHERE id = %s;", (employee_id,), fetch="one")
+        return _format_employee_from_db(row) if row else None
     data = _load_data()
     for emp in data.get("employees", []):
         if emp.get("id") == employee_id:
@@ -1868,6 +2180,9 @@ def get_employee_by_email(email: str) -> Optional[Dict]:
     """Finds an employee by email address (case-insensitive)."""
     if not email:
         return None
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM employees WHERE LOWER(email) = LOWER(%s);", (email.strip(),), fetch="one")
+        return _format_employee_from_db(row) if row else None
     data = _load_data()
     email_clean = email.strip().lower()
     for emp in data.get("employees", []):
@@ -1879,6 +2194,9 @@ def get_employee_by_user_id(user_id: str) -> Optional[Dict]:
     """Finds an employee linked to a user account ID."""
     if not user_id:
         return None
+    if _use_postgres():
+        row = database.execute_query("SELECT * FROM employees WHERE user_id = %s;", (user_id,), fetch="one")
+        return _format_employee_from_db(row) if row else None
     data = _load_data()
     for emp in data.get("employees", []):
         if str(emp.get("user_id")) == str(user_id):
@@ -2035,16 +2353,24 @@ def update_employee(employee_id: str, updates: Dict) -> Optional[Dict]:
 
 def delete_employee(employee_id: str) -> bool:
     """Removes an employee and clears any direct-report references to them."""
-    data = _load_data()
+    deleted = False
+    if _use_postgres():
+        try:
+            database.execute_query("UPDATE employees SET team_lead_id = NULL WHERE team_lead_id = %s;", (employee_id,))
+            database.execute_query("DELETE FROM employees WHERE id = %s;", (employee_id,))
+            deleted = True
+        except Exception as exc:
+            logging.warning(f"Error deleting employee from DB: {exc}")
+    data = _load_data_from_disk()
     initial_len = len(data.get("employees", []))
     data["employees"] = [e for e in data.get("employees", []) if e.get("id") != employee_id]
     if len(data["employees"]) < initial_len:
         for e in data["employees"]:
             if e.get("team_lead_id") == employee_id:
                 e["team_lead_id"] = None
-        _save_data(data)
-        return True
-    return False
+        _save_data_to_disk(data)
+        deleted = True
+    return deleted
 
 def convert_candidate_to_employee(
     candidate_id: str,

@@ -207,6 +207,44 @@ class FakeConnection:
                 rows = list(self.tables["notifications"].values())
                 return [dict(r) for r in rows], len(rows)
 
+            # Employees
+            if "FROM EMPLOYEES" in upper:
+                if "WHERE ID = %S" in upper:
+                    eid = params[0]
+                    row = self.tables["employees"].get(eid)
+                    return [dict(row)] if row else [], 1 if row else 0
+                if "WHERE LOWER(EMAIL) = LOWER(%S)" in upper:
+                    em = params[0].lower()
+                    row = next((r for r in self.tables["employees"].values() if (r.get("email") or "").lower() == em), None)
+                    return [dict(row)] if row else [], 1 if row else 0
+                if "WHERE ACCESS_ROLE = 'TEAM_LEAD'" in upper:
+                    rows = [dict(r) for r in self.tables["employees"].values() if r.get("access_role") == "team_lead"]
+                    return rows, len(rows)
+                rows = list(self.tables["employees"].values())
+                return [dict(r) for r in rows], len(rows)
+
+            # Attendance
+            if "FROM ATTENDANCE" in upper:
+                if "WHERE DATE = %S" in upper:
+                    dt = params[0]
+                    rows = [dict(r) for r in self.tables["attendance"].values() if r.get("date") == dt]
+                    return rows, len(rows)
+                if "WHERE EMPLOYEE_ID = %S" in upper:
+                    eid = params[0]
+                    rows = [dict(r) for r in self.tables["attendance"].values() if r.get("employee_id") == eid]
+                    return rows, len(rows)
+                rows = list(self.tables["attendance"].values())
+                return [dict(r) for r in rows], len(rows)
+
+            # Leave requests
+            if "FROM LEAVE_REQUESTS" in upper:
+                if "WHERE EMPLOYEE_ID = %S" in upper:
+                    eid = params[0]
+                    rows = [dict(r) for r in self.tables["leave_requests"].values() if r.get("employee_id") == eid]
+                    return rows, len(rows)
+                rows = list(self.tables["leave_requests"].values())
+                return [dict(r) for r in rows], len(rows)
+
         # UPDATE statements
         if upper.startswith("UPDATE"):
             if "UPDATE CANDIDATES SET STATUS = %S" in upper:
@@ -264,6 +302,11 @@ class FakeConnection:
             if "DELETE FROM POSITIONS WHERE ID = %S" in upper:
                 pid = params[0]
                 self.tables["positions"].pop(pid, None)
+                return [], 1
+
+            if "DELETE FROM EMPLOYEES WHERE ID = %S" in upper:
+                eid = params[0]
+                self.tables["employees"].pop(eid, None)
                 return [], 1
 
         return [], 0
@@ -800,6 +843,53 @@ class TestPostgresChatAndTimeline(unittest.TestCase):
         # Verify screening event contains scores
         screening = next(e for e in timeline if "Screening" in e.get("sender_name", "") or "score" in e.get("content", ""))
         self.assertIn("9.4", screening["content"])
+
+    def test_employee_and_attendance_in_postgres(self):
+        # Create Team Lead
+        lead_id = storage.save_employee({
+            "id": "EMP-2001",
+            "name": "Sarah Connor",
+            "email": "sarah@corp.test",
+            "role": "Engineering Lead",
+            "access_role": "team_lead",
+            "leave_quota": {"casual": 12, "yearly": 15}
+        })
+        self.assertEqual(lead_id, "EMP-2001")
+
+        # Create Employee under Team Lead
+        emp_id = storage.save_employee({
+            "id": "EMP-2002",
+            "name": "John Connor",
+            "email": "john@corp.test",
+            "role": "Software Engineer",
+            "access_role": "employee",
+            "team_lead_id": "EMP-2001",
+            "leave_quota": {"casual": 10, "yearly": 15}
+        })
+        self.assertEqual(emp_id, "EMP-2002")
+
+        # Verify retrieval from PostgreSQL simulation
+        emp = storage.get_employee("EMP-2002")
+        self.assertIsNotNone(emp)
+        self.assertEqual(emp["name"], "John Connor")
+        self.assertEqual(emp["team_lead_id"], "EMP-2001")
+        self.assertEqual(emp["leave_quota"]["casual"], 10)
+
+        # Clock in
+        att = storage.clock_in("EMP-2002", custom_time="09:15 AM")
+        self.assertIsNotNone(att)
+        self.assertEqual(att["employee_id"], "EMP-2002")
+        self.assertEqual(att["clock_in"], "09:15 AM")
+        self.assertEqual(att["status"], "Present")
+
+        # Verify today's attendance
+        today_att = storage.get_today_attendance()
+        self.assertTrue(any(a["employee_id"] == "EMP-2002" for a in today_att))
+
+        # Delete employee
+        deleted = storage.delete_employee("EMP-2002")
+        self.assertTrue(deleted)
+        self.assertIsNone(storage.get_employee("EMP-2002"))
 
 
 if __name__ == "__main__":

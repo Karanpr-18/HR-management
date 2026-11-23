@@ -1551,9 +1551,11 @@ def health():
     try:
         # Verify storage connectivity
         _ = storage.get_all_positions()
+        backend = "postgresql" if storage.is_postgres_active() else "json"
         return jsonify({
             "status": "healthy",
             "service": "talentai-hr",
+            "storage_backend": backend,
             "timestamp": datetime.now().isoformat()
         }), 200
     except Exception as exc:
@@ -1563,6 +1565,27 @@ def health():
             "error": str(exc),
             "timestamp": datetime.now().isoformat()
         }), 503
+
+@app.cli.command("init-db")
+def init_db_command():
+    """Initialize PostgreSQL database tables from schema.sql."""
+    import database
+    database.init_db()
+    print("PostgreSQL schema initialized successfully.")
+
+@app.cli.command("seed-db")
+def seed_db_command():
+    """Seed dummy data directly into PostgreSQL tables."""
+    import seed_data
+    summary = seed_data.seed_database()
+    print(f"PostgreSQL dummy data seeded successfully: {summary}")
+
+@app.cli.command("migrate-db")
+def migrate_db_command():
+    """Migrate data from JSON store into PostgreSQL database."""
+    import migrate_to_postgres
+    summary = migrate_to_postgres.migrate_data()
+    print(f"Migration completed successfully: {summary}")
 
 @app.errorhandler(404)
 def not_found_error(error):
